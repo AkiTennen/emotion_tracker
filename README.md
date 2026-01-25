@@ -10,6 +10,7 @@ This project is currently in early development and serves both as a learning pro
 
 - Track emotions over time in a simple, low-friction way
 - Offer visual tools (such as body maps) to reflect where emotions are felt
+- Preserve emotional snapshots and their later reinterpretations
 - Keep all data **local-only** (no accounts, no cloud, no tracking)
 - Build a calm, respectful UI that does not overwhelm the user
 
@@ -23,8 +24,7 @@ This project is currently in early development and serves both as a learning pro
     - Desktop (Windows, Linux, macOS)
 - No iOS support planned at this time
 - min SDK version 26 (Android 8)
-- target SDK version 34/35
-- do need 36?
+- target SDK version 35/36
 
 ---
 
@@ -40,55 +40,98 @@ This project is currently in early development and serves both as a learning pro
 ## Planned Features (Roadmap)
 
 ### Phase 1 – Foundations Emotion check-ins
-- Emotion model (date, intensity, tags)
-- Local persistence (no external services)
-- Basic app navigation structure
-- prompt ~3x daily (soft reminder), option between push or alarm function
-- predefined emotion options (3 tiers, unlocking logic)
+#### Core emotion tracking
+- Emotion entries with:
+  - timestamp (date+time)
+  - selected emotion(s)
+- Predefined emotion options in three tiers
 - unlimited manual entries per day
-- monthly calendar view with colour/ emotion indicators
-- Unlocking logic:
-  - when used tier 1 emotions 7 times unlock tier 2
-  - when used tier 2 emotions 7 times unlock tier 3
-  - when used tier 3 emotions 7 times unlock Intensity
-- Option to have all features from start or to unlock them through the unlocking logic --> explain in onboarding!
-- after unlocking all 3 tiers the following entry options are possible:
+- Soft reminders (~3x daily), configurable (push notification or alarm)
+- Monthly calendar View:
+  - each day visualized as a segmented circle or bar
+  - Segments represent individual entries
+  - Colours represent emotions
+#### Entry integrity and meaning over time
+- Entries represent emotional moments, not mutable records
+- Past entries are never overwritten
+- Any change creates a revision, not a replacement
+- Each entry consists of:
+  - an original snapshot
+  - a list of revisions applied over time
+- Revisions can be:
+  - Corrections (fixing mistakes, mis-taps, typos)
+  - Reflection (later reinterpretation of the same moment)
+- Revisions:
+  - Store only the changed fields (delta-based)
+  - are timestamped
+  - are listable and explorable by the user
+  - allow users to observe how their understanding evolved
+#### Editing UX philosophy
+- Editing an entry triggers a lightweight choice:
+  - Correction
+  - Reflection
+  - New Entry
+- Implemented via a non-intrusive snackbar
+- Reflection does not imply a new emotional moment
+- New emotional moments should be recorded as new entries
+#### Locking logic
+- Entries from past or future dates:
+  - Edit only via corrections or reflections
+  - Can be viewed or deleted
+- Only entries on current date can be newly created without the snackbar
+- This preserves:
+  - authenticity of past states
+  - freedom to gain insight later
+  - protection against emotional "rewriting"
+#### Unlocking logic (use-based, not time based)
+- Tier 1 emotions available from start
+- Unlock tier 2 emotions after tier 1 emotions used 7 times
+- Unlock tier 3 emotions after tier 2 emotions used 7 times
+- Unlock intensity after tier 3 emotions used 7 times
+- optional settings:
+  - enable all features immediately
+  - or use staged unlocking (explained clearly during onboarding)
+- After unlocking all tiers, per-entry selection allows:
   - only tier 1 emotion
   - tier 1, tier 2 and tier 3 emotion
   - tier 1 and tier 3 emotion
-- for tier 2 and tier 3 a "custom" option should be given
-- lock past and future entries, only entries on the current date can be made
-- only option is to view or delete an entry from a past date
+  - Tier 2 and tier 3 include a custom/ free-text option
 
 ### Phase 2 – Intensity and Visual Reflection
-- Intensity between 1-3
+- Intensity between 0-3
 - stored per entry
 - visualized as saturation, opacity or bar height in calendar view
-- "Where in the body do you feel that emotion"
-- Body map selection and interaction SVG with normalizedPosition for storage)
-- Emotion-to-body association
-- not mandatory but possible for every entry
-- Unlocking logic:
-  - when Intensity used 7 times unlock Body map --> screens to explain body map feature
-- Intensity can always stay 0 if wanted --> doesn't count as used then
+- Intensity is optional and may remain 0
+- Intensity usage counts toward unlock only when >0
+#### Body awareness
+- Prompt "Where in the body do you feel that emotion"
+- Interactive, zoomable body map (SVG-based)
+- Normalized coordinates stored
+- Emotion-to-body associations
+- Optional per entry
+#### Unlocking logic:
+- Body map unlocks after Intensity used 7 times
+- Intro screen explain body map usage
 
 ### Phase 3 – Trigger prompts
-- prompt "Do you want to note what influenced this?"
-- short text, keywords or selectable tags
+- Optional Prompt "Do you want to note what influenced this?"
+- short free-text input or keywords
 - never mandatory
-- Unlocking logic:
-  - When Bodymap was used 3 times
+- Visual indicator on calendar when trigger exists (font of date number different colour?)
+#### Unlocking logic:
+- Trigger prompts unlock after Body Map used 3 times
 
 ### Phase 4 – Free journal
-- Full text entries
+- Long-form text entries
 - Date-based, not forced daily
 - can reference emotions automatically
-- option to get prompts for journaling maybe?
-- Unlocking logic:
-  - when Trigger was used 3 times
+- optional journaling prompts
+#### Unlocking logic:
+- Journal unlocks after Trigger used 3 times
 
 ### Phase 5 – Data Export 
-- Export whole entries, parts of entries as PDF
+- Export entries (full or partial) as PDF
+- User-controlled scope and date ranges
 
 ---
 
@@ -100,6 +143,7 @@ All data stays on the user’s device.
 No accounts.  
 No analytics.  
 No external servers.
+No hidden data flows.
 
 ---
 
