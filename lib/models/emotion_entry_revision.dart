@@ -1,81 +1,58 @@
-import 'package:uuid/uuid.dart';
+/// Defines the type of revision being made.
+enum RevisionType {
+  /// A simple data fix for a typo or misclick.
+  correction,
 
-// Create a single instance of Uuid to generate unique identifiers.
-const _uuid = Uuid();
+  /// A profound re-interpretation of a past emotion, with reasoning.
+  reflection,
+}
 
-/// Abstract base class for all revisions made to an EmotionEntry.
-///
-/// Each revision has its own unique ID, a timestamp, and a link
-/// back to the original EmotionEntry it belongs to.
-abstract class EmotionEntryRevision {
-  /// A unique ID for the revision itself.
-  final String id;
-
-  /// The ID of the EmotionEntry this revision is for.
+class EmotionEntryRevision {
   final String emotionEntryId;
-
-  /// The timestamp of when this revision was created.
   final DateTime timestamp;
+  final RevisionType revisionType;
+  final String tier1Emotion;
+  final String? tier2Emotion;
+  final String? tier3Emotion;
+  final int intensity;
+  final String? reflectionText;
 
   EmotionEntryRevision({
     required this.emotionEntryId,
-  })  : id = _uuid.v4(),
-        timestamp = DateTime.now();
-}
-
-/// A 'Correction' revision.
-///
-/// Use this for simple data fixes (e.g., typos, misclicks).
-/// The UI should display the data from this class *instead of* the
-/// original EmotionEntry's data.
-class EmotionEntryCorrection extends EmotionEntryRevision {
-  /// The corrected primary emotion from Tier 1.
-  final String tier1Emotion;
-
-  /// The corrected optional secondary emotion from Tier 2.
-  final String? tier2Emotion;
-
-  /// The corrected optional tertiary emotion from Tier 3.
-  final String? tier3Emotion;
-
-  /// The corrected optional intensity level.
-  final int intensity;
-
-  EmotionEntryCorrection({
-    required super.emotionEntryId,
-    required this.tier1Emotion,
-    this.tier2Emotion,
-    this.tier3Emotion,
-    required this.intensity,
-  });
-}
-
-/// A 'Reflection' revision.
-///
-/// Use this for a re-interpretation of a past emotion. It updates the
-/// core emotion data and captures the user's reasoning.
-class EmotionEntryReflection extends EmotionEntryRevision {
-  /// The re-interpreted primary emotion from Tier 1.
-  final String tier1Emotion;
-
-  /// The re-interpreted optional secondary emotion from Tier 2.
-  final String? tier2Emotion;
-
-  /// The re-interpreted optional tertiary emotion from Tier 3.
-  final String? tier3Emotion;
-
-  /// The re-interpreted optional intensity level.
-  final int intensity;
-
-  /// Optional text explaining the user's reason for the reflection.
-  final String? reflectionText;
-
-  EmotionEntryReflection({
-    required super.emotionEntryId,
+    required this.revisionType,
     required this.tier1Emotion,
     this.tier2Emotion,
     this.tier3Emotion,
     required this.intensity,
     this.reflectionText,
-  });
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+
+  // Convert EmotionEntryRevision object to a Map for Hive storage
+  Map<String, dynamic> toMap() {
+    return {
+      'emotionEntryId': emotionEntryId,
+      'timestamp': timestamp.toIso8601String(),
+      'revisionType': revisionType.name,
+      'tier1Emotion': tier1Emotion,
+      'tier2Emotion': tier2Emotion,
+      'tier3Emotion': tier3Emotion,
+      'intensity': intensity,
+      'reflectionText': reflectionText,
+    };
+  }
+
+  // Create an EmotionEntryRevision object from a Hive Map
+  factory EmotionEntryRevision.fromMap(Map<dynamic, dynamic> map) {
+    return EmotionEntryRevision(
+      emotionEntryId: map['emotionEntryId'] as String,
+      timestamp: DateTime.parse(map['timestamp'] as String),
+      revisionType: RevisionType.values.byName(map['revisionType'] as String),
+      tier1Emotion: map['tier1Emotion'] as String,
+      tier2Emotion: map['tier2Emotion'] as String?,
+      tier3Emotion: map['tier3Emotion'] as String?,
+      intensity: map['intensity'] as int,
+      reflectionText: map['reflectionText'] as String?,
+    );
+  }
 }
