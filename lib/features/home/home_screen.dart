@@ -5,6 +5,7 @@ import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
 import '../../services/database_service.dart';
 import '../add_emotion/add_emotion_screen.dart';
+import '../settings/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -79,6 +80,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Emotions'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+              _refreshData(); // Refresh in case settings changed
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -128,11 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     onDismissed: (direction) async {
                       await DatabaseService.deleteEntry(entry.id);
                       _refreshData();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Entry deleted')),
-                        );
-                      }
                     },
                     child: ListTile(
                       leading: CircleAvatar(
