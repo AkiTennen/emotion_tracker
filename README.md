@@ -115,7 +115,11 @@ This project is currently in early development and serves both as a learning pro
 #### Unlocking logic [DONE]
 - Sequential tier unlocking based on logs
 - Global "Skip" setting implemented
-#### Locking logic [UP NEXT]
+#### Locking logic [DONE]
+- Past new entry asks before Entry can be made
+- Past entries show date of when entry was made and which date the entry refers to
+- only edits possible via Reflection or Correction dialogue
+- delete via swipe
 
 ### Phase 2 – Intensity and Visual Reflection
 - Intensity between 0-3

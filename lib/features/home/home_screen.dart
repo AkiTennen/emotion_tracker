@@ -38,13 +38,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showRevisionDialog(EmotionEntry entry) {
-    // Get the LATEST state to pre-fill the revision screen
     final latest = DatabaseService.getLatestState(entry);
-    
-    // Create a temporary EmotionEntry object with the latest data for the UI
     final currentEntryState = EmotionEntry(
       id: entry.id,
       timestamp: entry.timestamp,
+      createdAt: entry.createdAt,
       tier1Emotion: latest['tier1'],
       tier2Emotion: latest['tier2'],
       tier3Emotion: latest['tier3'],
@@ -110,6 +108,47 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _onAddButtonPressed() async {
+    if (_selectedDay == null) return;
+
+    // Mindful Check: Prompt user if adding an entry for any day that is NOT today.
+    final bool isToday = isSameDay(_selectedDay, DateTime.now());
+
+    if (!isToday) {
+      final bool? proceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Reflecting on the past?'),
+          content: const Text(
+            'You are adding a new entry for a past date. Is this a new emotional moment you remembered?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Yes, add entry'),
+            ),
+          ],
+        ),
+      );
+
+      if (proceed != true) return;
+    }
+
+    if (!mounted) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddEmotionScreen(selectedDate: _selectedDay!),
+      ),
+    );
+    _refreshData();
   }
 
   Widget _buildDayCell(DateTime day, {bool isSelected = false, bool isToday = false, bool isOutside = false}) {
@@ -259,15 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: _selectedDay != null
           ? FloatingActionButton(
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddEmotionScreen(selectedDate: _selectedDay!),
-            ),
-          );
-          _refreshData();
-        },
+        onPressed: _onAddButtonPressed,
         tooltip: 'Add Emotion',
         child: const Icon(Icons.add),
       )

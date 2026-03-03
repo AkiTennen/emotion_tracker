@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
@@ -203,6 +204,17 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   void _saveEntry() async {
     if (_selectedTier1 == null) return;
 
+    final now = DateTime.now();
+    // Combine selected calendar date with current time
+    final timestamp = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month,
+      widget.selectedDate.day,
+      now.hour,
+      now.minute,
+      now.second,
+    );
+
     if (widget.existingEntry != null && widget.revisionType != null) {
       // Save as Revision
       final revision = EmotionEntryRevision(
@@ -217,20 +229,14 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       await DatabaseService.saveRevision(revision);
     } else {
       // Save as New Entry
-      final entry = EmotionEntry.create(
+      final entry = EmotionEntry(
+        id: const Uuid().v4(),
+        timestamp: timestamp,
+        createdAt: now,
         tier1Emotion: _selectedTier1!,
         tier2Emotion: _selectedTier2,
         tier3Emotion: _selectedTier3,
         intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
-      );
-
-      final now = DateTime.now();
-      entry.timestamp = DateTime(
-        widget.selectedDate.year,
-        widget.selectedDate.month,
-        widget.selectedDate.day,
-        now.hour,
-        now.minute,
       );
       await DatabaseService.saveEntry(entry);
     }

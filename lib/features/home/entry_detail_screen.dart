@@ -26,12 +26,15 @@ class EntryDetailScreen extends StatelessWidget {
             _buildTimelineTile(
               context,
               title: 'Original Moment',
-              timestamp: entry.timestamp,
+              // SHOW: Real-world creation date/time
+              timestamp: entry.createdAt, 
               tier1: entry.tier1Emotion,
               tier2: entry.tier2Emotion,
               tier3: entry.tier3Emotion,
               intensity: entry.intensity,
               isOriginal: true,
+              // SUBTITLE: The date it refers to on the calendar
+              description: 'Refers to ${DateFormat('MMM d, HH:mm').format(entry.timestamp)}',
             ),
             ...revisions.map((rev) => _buildTimelineTile(
               context,
@@ -59,6 +62,7 @@ class EntryDetailScreen extends StatelessWidget {
     String? tier3,
     required int intensity,
     String? note,
+    String? description,
     bool isOriginal = false,
     IconData? icon,
   }) {
@@ -68,7 +72,6 @@ class EntryDetailScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Timeline line and dot
           Column(
             children: [
               Container(
@@ -93,7 +96,6 @@ class EntryDetailScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(width: 16),
-          // Content Card
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,6 +110,8 @@ class EntryDetailScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (description != null) 
+                  Text(description, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey)),
                 const SizedBox(height: 4),
                 Card(
                   margin: const EdgeInsets.only(bottom: 24),
