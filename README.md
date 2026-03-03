@@ -108,6 +108,8 @@ This project is currently in early development and serves both as a learning pro
 #### Core emotion tracking [DONE]
 - Emotion entries with timestamp, tiers and intensity
 - Monthly calendar view with segmented colour circles
+- up to 3 daily reminders (push notification , vibrating and alarm)
+- app opens when notification is selected
 #### Entry integrity and meaning over time [DONE]
 - Revisions (Corrections vs. Reflections) instead of simple overwriting
 - Delta-based storage for changes
