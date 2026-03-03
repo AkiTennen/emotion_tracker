@@ -29,6 +29,12 @@ class DatabaseService {
     await box.put(entry.id, entry.toMap());
   }
 
+  /// Deletes an EmotionEntry by its ID
+  static Future<void> deleteEntry(String id) async {
+    final box = Hive.box(entriesBoxName);
+    await box.delete(id);
+  }
+
   /// Retrieves all EmotionEntries from the database
   static List<EmotionEntry> getAllEntries() {
     final box = Hive.box(entriesBoxName);
