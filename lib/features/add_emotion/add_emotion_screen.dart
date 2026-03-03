@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
+import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
 
 class AddEmotionScreen extends StatefulWidget {
   final DateTime selectedDate;
+  final EmotionEntry? existingEntry;
+  final RevisionType? revisionType;
 
-  const AddEmotionScreen({super.key, required this.selectedDate});
+  const AddEmotionScreen({
+    super.key,
+    required this.selectedDate,
+    this.existingEntry,
+    this.revisionType,
+  });
 
   @override
   State<AddEmotionScreen> createState() => _AddEmotionScreenState();
@@ -18,22 +26,31 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   String? _selectedTier2;
   String? _selectedTier3;
   double _intensity = 1.0;
+  String? _reflectionText;
 
   bool _isTier2Unlocked = false;
   bool _isTier3Unlocked = false;
   bool _isIntensityUnlocked = false;
 
   final TextEditingController _customController = TextEditingController();
+  final TextEditingController _reflectionController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _checkUnlocks();
+    if (widget.existingEntry != null) {
+      _selectedTier1 = widget.existingEntry!.tier1Emotion;
+      _selectedTier2 = widget.existingEntry!.tier2Emotion;
+      _selectedTier3 = widget.existingEntry!.tier3Emotion;
+      _intensity = widget.existingEntry!.intensity.toDouble();
+    }
   }
 
   @override
   void dispose() {
     _customController.dispose();
+    _reflectionController.dispose();
     super.dispose();
   }
 
@@ -186,23 +203,38 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   void _saveEntry() async {
     if (_selectedTier1 == null) return;
 
-    final entry = EmotionEntry.create(
-      tier1Emotion: _selectedTier1!,
-      tier2Emotion: _selectedTier2,
-      tier3Emotion: _selectedTier3,
-      intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
-    );
+    if (widget.existingEntry != null && widget.revisionType != null) {
+      // Save as Revision
+      final revision = EmotionEntryRevision(
+        emotionEntryId: widget.existingEntry!.id,
+        revisionType: widget.revisionType!,
+        tier1Emotion: _selectedTier1!,
+        tier2Emotion: _selectedTier2,
+        tier3Emotion: _selectedTier3,
+        intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
+        reflectionText: _reflectionText,
+      );
+      await DatabaseService.saveRevision(revision);
+    } else {
+      // Save as New Entry
+      final entry = EmotionEntry.create(
+        tier1Emotion: _selectedTier1!,
+        tier2Emotion: _selectedTier2,
+        tier3Emotion: _selectedTier3,
+        intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
+      );
 
-    final now = DateTime.now();
-    entry.timestamp = DateTime(
-      widget.selectedDate.year,
-      widget.selectedDate.month,
-      widget.selectedDate.day,
-      now.hour,
-      now.minute,
-    );
-
-    await DatabaseService.saveEntry(entry);
+      final now = DateTime.now();
+      entry.timestamp = DateTime(
+        widget.selectedDate.year,
+        widget.selectedDate.month,
+        widget.selectedDate.day,
+        now.hour,
+        now.minute,
+      );
+      await DatabaseService.saveEntry(entry);
+    }
+    
     if (mounted) Navigator.pop(context);
   }
 
@@ -215,7 +247,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('How are you feeling?'),
+        title: Text(widget.revisionType == null 
+            ? 'How are you feeling?' 
+            : (widget.revisionType == RevisionType.correction ? 'Correcting entry' : 'Reflecting on entry')),
         actions: [
           IconButton(
             onPressed: _selectedTier1 != null ? _saveEntry : null,
@@ -381,6 +415,22 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                   ),
               ],
             ],
+
+            if (widget.revisionType == RevisionType.reflection) ...[
+              const Divider(height: 32),
+              Text('Why does this feel different now?', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _reflectionController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Add some context to your reflection...',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) => _reflectionText = value,
+              ),
+            ],
+
             const SizedBox(height: 32),
             if (_selectedTier1 != null)
               SizedBox(
@@ -391,7 +441,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: _saveEntry,
-                  child: const Text('Save Entry'),
+                  child: Text(widget.revisionType == null ? 'Save Entry' : 'Save Revision'),
                 ),
               ),
           ],

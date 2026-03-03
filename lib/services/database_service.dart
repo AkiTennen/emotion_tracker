@@ -22,7 +22,18 @@ class DatabaseService {
 
   static Future<void> deleteEntry(String id) async {
     final box = Hive.box(entriesBoxName);
+    // When deleting an entry, we should also delete its revisions
     await box.delete(id);
+    
+    final revBox = Hive.box(revisionsBoxName);
+    final keysToDelete = revBox.keys.where((key) {
+      final rev = EmotionEntryRevision.fromMap(revBox.get(key));
+      return rev.emotionEntryId == id;
+    }).toList();
+    
+    for (var key in keysToDelete) {
+      await revBox.delete(key);
+    }
   }
 
   static List<EmotionEntry> getAllEntries() {
@@ -47,6 +58,41 @@ class DatabaseService {
   static Future<void> saveRevision(EmotionEntryRevision revision) async {
     final box = Hive.box(revisionsBoxName);
     await box.add(revision.toMap());
+  }
+
+  /// Gets all revisions for a specific entry, sorted by time.
+  static List<EmotionEntryRevision> getRevisionsForEntry(String entryId) {
+    final box = Hive.box(revisionsBoxName);
+    return box.values
+        .map((map) => EmotionEntryRevision.fromMap(map))
+        .where((rev) => rev.emotionEntryId == entryId)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  }
+
+  /// Returns the latest effective state of an entry (original + latest revision).
+  static Map<String, dynamic> getLatestState(EmotionEntry entry) {
+    final revisions = getRevisionsForEntry(entry.id);
+    if (revisions.isEmpty) {
+      return {
+        'tier1': entry.tier1Emotion,
+        'tier2': entry.tier2Emotion,
+        'tier3': entry.tier3Emotion,
+        'intensity': entry.intensity,
+        'hasRevisions': false,
+      };
+    }
+    
+    final latest = revisions.last;
+    return {
+      'tier1': latest.tier1Emotion,
+      'tier2': latest.tier2Emotion,
+      'tier3': latest.tier3Emotion,
+      'intensity': latest.intensity,
+      'hasRevisions': true,
+      'latestType': latest.revisionType,
+      'latestTimestamp': latest.timestamp,
+    };
   }
 
   // --- Custom Emotions Storage ---

@@ -40,6 +40,7 @@ This project is currently in early development and serves both as a learning pro
 - Staged Unlocking: Sequential reveal of emotion tiers based on usage to prevent overwhelm
 - Settings: Ability to skip unlocking for advanced users/ testing
 - Architecture: Feature-based architecture with local service-based data management
+- Revision System: "Correction" vs. "Reflection" flow with a visual timeline of emotional growth
 
 ---
 
@@ -72,13 +73,6 @@ This project is currently in early development and serves both as a learning pro
   - are timestamped
   - are listable and explorable by the user
   - allow users to observe how their understanding evolved
-#### Core emotion tracking [DONE]
-- Emotion entries with timestamp, tiers and intensity
-- Monthly calendar view with segmented colour circles
-#### Entry integrity and meaning over time [UP NEXT]
-- Revisions (Corrections vs. Reflections) instead of simple overwriting
-- Delta-based storage for changes
-- Historical entries protected from "rewriting" while allowing for later insight.
 #### Editing UX philosophy
 - Editing an entry triggers a lightweight choice:
   - Correction
@@ -110,9 +104,18 @@ This project is currently in early development and serves both as a learning pro
   - tier 1, tier 2 and tier 3 emotion
   - tier 1 and tier 3 emotion
   - Tier 2 and tier 3 include a custom/ free-text option
+### Phase 1 - Foundation & Emotion check-ins
+#### Core emotion tracking [DONE]
+- Emotion entries with timestamp, tiers and intensity
+- Monthly calendar view with segmented colour circles
+#### Entry integrity and meaning over time [DONE]
+- Revisions (Corrections vs. Reflections) instead of simple overwriting
+- Delta-based storage for changes
+- Historical entries protected from "rewriting" while allowing for later insight.
 #### Unlocking logic [DONE]
 - Sequential tier unlocking based on logs
 - Global "Skip" setting implemented
+#### Locking logic [UP NEXT]
 
 ### Phase 2 – Intensity and Visual Reflection
 - Intensity between 0-3
