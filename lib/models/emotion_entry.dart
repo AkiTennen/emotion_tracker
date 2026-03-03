@@ -8,6 +8,10 @@ class EmotionEntry {
   String? tier2Emotion;
   String? tier3Emotion;
   int intensity;
+  
+  // Body Map Coordinates (Normalized 0.0 to 1.0)
+  double? bodyX;
+  double? bodyY;
 
   EmotionEntry({
     required this.id,
@@ -17,6 +21,8 @@ class EmotionEntry {
     this.tier2Emotion,
     this.tier3Emotion,
     this.intensity = 0,
+    this.bodyX,
+    this.bodyY,
   });
 
   static EmotionEntry create({
@@ -24,6 +30,8 @@ class EmotionEntry {
     String? tier2Emotion,
     String? tier3Emotion,
     int intensity = 0,
+    double? bodyX,
+    double? bodyY,
   }) {
     final now = DateTime.now();
     return EmotionEntry(
@@ -34,6 +42,8 @@ class EmotionEntry {
       tier2Emotion: tier2Emotion,
       tier3Emotion: tier3Emotion,
       intensity: intensity,
+      bodyX: bodyX,
+      bodyY: bodyY,
     );
   }
 
@@ -46,6 +56,8 @@ class EmotionEntry {
       'tier2Emotion': tier2Emotion,
       'tier3Emotion': tier3Emotion,
       'intensity': intensity,
+      'bodyX': bodyX,
+      'bodyY': bodyY,
     };
   }
 
@@ -55,11 +67,13 @@ class EmotionEntry {
       timestamp: DateTime.parse(map['timestamp'] as String),
       createdAt: map['createdAt'] != null 
           ? DateTime.parse(map['createdAt'] as String) 
-          : DateTime.parse(map['timestamp'] as String), // Fallback for old entries
+          : DateTime.parse(map['timestamp'] as String),
       tier1Emotion: map['tier1Emotion'] as String,
       tier2Emotion: map['tier2Emotion'] as String?,
       tier3Emotion: map['tier3Emotion'] as String?,
       intensity: map['intensity'] as int,
+      bodyX: map['bodyX'] as double?,
+      bodyY: map['bodyY'] as double?,
     );
   }
 }

@@ -13,24 +13,34 @@ dependencies:
   cupertino_icons: ^1.0.8
   uuid: ^4.4.0
 
-  # NEW DATABASE: Hive CE (No generators, no build_runner errors)
+  # NEW DATABASE: Hive CE
   hive_ce: ^2.10.1
   hive_ce_flutter: ^2.1.0
 
   path_provider: ^2.1.3
   table_calendar: ^3.1.1
 
+  # NOTIFICATIONS & SCHEDULING
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
+
+  # AUDIO PREVIEW
+  audioplayers: ^6.1.0
+
+  # INTL for date formatting (Updated to resolve dependency conflict)
+  intl: ^0.20.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  flutter_lints: ^5.0.0 # Standard for Flutter 3.10+
+  flutter_lints: ^5.0.0
 
-  # build_runner kept only if needed by other future packages,
-  # but Hive DOES NOT need it.
   build_runner: ^2.4.9
 
 flutter:
   uses-material-design: true
   assets:
     - assets/body_maps/
+    - assets/audio/
