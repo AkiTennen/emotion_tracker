@@ -6,11 +6,13 @@ import '../models/emotion_entry_revision.dart';
 class DatabaseService {
   static const String entriesBoxName = 'emotion_entries';
   static const String revisionsBoxName = 'emotion_revisions';
+  static const String customEmotionsBoxName = 'custom_emotions';
 
   static Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox(entriesBoxName);
     await Hive.openBox(revisionsBoxName);
+    await Hive.openBox(customEmotionsBoxName);
   }
 
   static Future<void> saveEntry(EmotionEntry entry) async {
@@ -30,17 +32,14 @@ class DatabaseService {
 
   // --- Logic for Unlocking Tiers ---
 
-  /// Returns the count of entries that have a Tier 1 emotion.
   static int getTier1Count() {
     return getAllEntries().length;
   }
 
-  /// Returns the count of entries that have a Tier 2 emotion.
   static int getTier2Count() {
     return getAllEntries().where((e) => e.tier2Emotion != null).length;
   }
 
-  /// Returns the count of entries that have a Tier 3 emotion.
   static int getTier3Count() {
     return getAllEntries().where((e) => e.tier3Emotion != null).length;
   }
@@ -48,5 +47,55 @@ class DatabaseService {
   static Future<void> saveRevision(EmotionEntryRevision revision) async {
     final box = Hive.box(revisionsBoxName);
     await box.add(revision.toMap());
+  }
+
+  // --- Custom Emotions Storage ---
+
+  static List<String> getCustomTier2Emotions(String tier1) {
+    final box = Hive.box(customEmotionsBoxName);
+    return List<String>.from(box.get('tier2_$tier1', defaultValue: []));
+  }
+
+  static Future<void> addCustomTier2Emotion(String tier1, String emotion) async {
+    final box = Hive.box(customEmotionsBoxName);
+    final key = 'tier2_$tier1';
+    final existing = getCustomTier2Emotions(tier1);
+    if (!existing.contains(emotion)) {
+      existing.add(emotion);
+      await box.put(key, existing);
+    }
+  }
+
+  static Future<void> removeCustomTier2Emotion(String tier1, String emotion) async {
+    final box = Hive.box(customEmotionsBoxName);
+    final key = 'tier2_$tier1';
+    final existing = getCustomTier2Emotions(tier1);
+    if (existing.remove(emotion)) {
+      await box.put(key, existing);
+    }
+  }
+
+  static List<String> getCustomTier3Emotions(String tier1) {
+    final box = Hive.box(customEmotionsBoxName);
+    return List<String>.from(box.get('tier3_$tier1', defaultValue: []));
+  }
+
+  static Future<void> addCustomTier3Emotion(String tier1, String emotion) async {
+    final box = Hive.box(customEmotionsBoxName);
+    final key = 'tier3_$tier1';
+    final existing = getCustomTier3Emotions(tier1);
+    if (!existing.contains(emotion)) {
+      existing.add(emotion);
+      await box.put(key, existing);
+    }
+  }
+
+  static Future<void> removeCustomTier3Emotion(String tier1, String emotion) async {
+    final box = Hive.box(customEmotionsBoxName);
+    final key = 'tier3_$tier1';
+    final existing = getCustomTier3Emotions(tier1);
+    if (existing.remove(emotion)) {
+      await box.put(key, existing);
+    }
   }
 }
