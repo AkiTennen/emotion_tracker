@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/settings_service.dart';
 import '../../services/reminder_service.dart';
+import '../../services/backup_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -20,12 +21,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadReminders();
     _currentBodyType = SettingsService.getBodyType();
-    // Proactively request permissions for background alarms
     ReminderService.requestPermissions();
   }
 
   void _loadReminders() {
     _reminders = SettingsService.getReminders();
+    // Clean up old controllers
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    _controllers.clear();
+    
     for (var reminder in _reminders) {
       _controllers.add(TextEditingController(text: reminder.message));
     }
@@ -69,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         time: const TimeOfDay(hour: 8, minute: 0),
         alertType: AlertType.quiet,
         message: 'How are you feeling right now?',
+        isEnabled: true,
       );
       _reminders.add(newReminder);
       _controllers.add(TextEditingController(text: newReminder.message));
@@ -162,7 +169,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 16),
-                  // PREVIEW SVGS
                   Container(
                     height: 200,
                     decoration: BoxDecoration(
@@ -216,6 +222,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _handleBackup() async {
+    try {
+      await BackupService.exportBackup();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backup created successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Backup failed: $e')),
+        );
+      }
+    }
+  }
+
+  void _handleRestore() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore data?'),
+        content: const Text(
+          'This will replace all your current entries and settings with the data from the backup file. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Restore', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final success = await BackupService.importBackup();
+      if (mounted && success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data restored successfully')),
+        );
+        _loadReminders();
+        setState(() {
+          _currentBodyType = SettingsService.getBodyType();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Restore failed: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -261,6 +324,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _showBodyTypePicker,
           ),
           const Divider(),
+          
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text('Data Management', style: Theme.of(context).textTheme.titleLarge),
+          ),
+          ListTile(
+            leading: const Icon(Icons.upload_file),
+            title: const Text('Backup Data'),
+            subtitle: const Text('Export all your data to a JSON file for safekeeping.'),
+            onTap: _handleBackup,
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_for_offline),
+            title: const Text('Restore Data'),
+            subtitle: const Text('Restore your entries and settings from a backup file.'),
+            onTap: _handleRestore,
+          ),
+          const Divider(),
+
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -333,7 +415,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onPressed: () {
                             setState(() {
                               _reminders.removeAt(index);
-                              _controllers[index].dispose();
                               _controllers.removeAt(index);
                             });
                           },
@@ -356,43 +437,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           label: 'Quiet',
                           icon: Icons.notifications_none,
                           isSelected: reminder.alertType == AlertType.quiet,
-                          onTap: () => setState(() {
-                            _reminders[index] = Reminder(
-                              id: reminder.id,
-                              time: reminder.time,
-                              alertType: AlertType.quiet,
-                              message: reminder.message,
-                              isEnabled: reminder.isEnabled,
-                            );
-                          }),
+                          onTap: () {
+                            setState(() {
+                              _reminders[index] = Reminder(
+                                id: reminder.id,
+                                time: reminder.time,
+                                alertType: AlertType.quiet,
+                                message: reminder.message,
+                                isEnabled: reminder.isEnabled,
+                              );
+                            });
+                          },
                         ),
                         _AlertOption(
                           label: 'Vibrate',
                           icon: Icons.vibration,
                           isSelected: reminder.alertType == AlertType.vibrate,
-                          onTap: () => setState(() {
-                            _reminders[index] = Reminder(
-                              id: reminder.id,
-                              time: reminder.time,
-                              alertType: AlertType.vibrate,
-                              message: reminder.message,
-                              isEnabled: reminder.isEnabled,
-                            );
-                          }),
+                          onTap: () {
+                            setState(() {
+                              _reminders[index] = Reminder(
+                                id: reminder.id,
+                                time: reminder.time,
+                                alertType: AlertType.vibrate,
+                                message: reminder.message,
+                                isEnabled: reminder.isEnabled,
+                              );
+                            });
+                          },
                         ),
                         _AlertOption(
                           label: 'Alarm',
                           icon: Icons.alarm,
                           isSelected: reminder.alertType == AlertType.alarm,
-                          onTap: () => setState(() {
-                            _reminders[index] = Reminder(
-                              id: reminder.id,
-                              time: reminder.time,
-                              alertType: AlertType.alarm,
-                              message: reminder.message,
-                              isEnabled: reminder.isEnabled,
-                            );
-                          }),
+                          onTap: () {
+                            setState(() {
+                              _reminders[index] = Reminder(
+                                id: reminder.id,
+                                time: reminder.time,
+                                alertType: AlertType.alarm,
+                                message: reminder.message,
+                                isEnabled: reminder.isEnabled,
+                              );
+                            });
+                          },
                         ),
                         if (reminder.alertType == AlertType.alarm)
                           IconButton(
@@ -432,6 +519,7 @@ class _AlertOption extends StatelessWidget {
   final VoidCallback onTap;
 
   const _AlertOption({
+    super.key,
     required this.label,
     required this.icon,
     required this.isSelected,
@@ -440,24 +528,35 @@ class _AlertOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
-          border: isSelected ? Border.all(color: Theme.of(context).primaryColor) : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey),
-            Text(label, style: TextStyle(
-              fontSize: 12,
-              color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-            )),
-          ],
+    return Material( // Added Material to ensure touch effects
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.transparent,
+            border: Border.all(
+              color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade300,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

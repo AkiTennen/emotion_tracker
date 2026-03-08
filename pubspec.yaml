@@ -34,6 +34,10 @@ dependencies:
   # SVG Support
   flutter_svg: ^2.0.10+1
 
+  # FILE MANAGEMENT FOR BACKUP/RESTORE
+  file_picker: ^8.1.7
+  share_plus: ^10.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

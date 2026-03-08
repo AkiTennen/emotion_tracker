@@ -649,7 +649,7 @@ class BodyMapSmallPreviewPainter extends CustomPainter {
         if (points.isEmpty) continue;
         screenPath.moveTo((points[0][0] * midX) + midX, points[0][1] * size.height);
         for (var i = 1; i < points.length; i++) {
-          screenPath.lineTo((points[0][0] * midX) + midX, points[0][1] * size.height);
+          screenPath.lineTo((points[i][0] * midX) + midX, points[i][1] * size.height);
         }
         canvas.drawPath(screenPath, paint);
       }
