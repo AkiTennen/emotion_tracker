@@ -13,6 +13,7 @@ class SettingsService {
   static const String remindersKey = 'reminders';
   static const String bodyTypeKey = 'body_type';
   static const String bodyMapIntroShownKey = 'body_map_intro_shown';
+  static const String showJournalKey = 'show_journal_feature';
 
   static Future<void> init() async {
     await Hive.openBox(settingsBoxName);
@@ -47,6 +48,16 @@ class SettingsService {
   static Future<void> setBodyMapIntroShown(bool value) async {
     final box = Hive.box(settingsBoxName);
     await box.put(bodyMapIntroShownKey, value);
+  }
+
+  static bool isJournalEnabled() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(showJournalKey, defaultValue: false);
+  }
+
+  static Future<void> setJournalEnabled(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(showJournalKey, value);
   }
 
   // --- Reminders ---

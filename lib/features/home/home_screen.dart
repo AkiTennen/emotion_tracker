@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'dart:math' as math;
+import 'package:intl/intl.dart';
 import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
+import '../../models/journal_entry.dart';
+import '../../models/journal_revision.dart';
 import '../../services/database_service.dart';
+import '../../services/settings_service.dart';
 import '../add_emotion/add_emotion_screen.dart';
 import '../settings/settings_screen.dart';
 import 'entry_detail_screen.dart';
+import 'journal_editor_screen.dart';
+import 'journal_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDay;
   DateTime _focusedDay = DateTime.now();
   List<EmotionEntry> _allEntries = [];
+  List<JournalEntry> _allJournals = [];
 
   @override
   void initState() {
@@ -30,11 +37,16 @@ class _HomeScreenState extends State<HomeScreen> {
   void _refreshData() {
     setState(() {
       _allEntries = DatabaseService.getAllEntries();
+      _allJournals = DatabaseService.getAllJournals();
     });
   }
 
   List<EmotionEntry> _getEntriesForDay(DateTime day) {
     return _allEntries.where((entry) => isSameDay(entry.timestamp, day)).toList();
+  }
+
+  List<JournalEntry> _getJournalsForDay(DateTime day) {
+    return _allJournals.where((journal) => isSameDay(journal.timestamp, day)).toList();
   }
 
   void _showRevisionDialog(EmotionEntry entry) {
@@ -112,9 +124,123 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showJournalRevisionDialog(JournalEntry journal) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('View history'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => JournalDetailScreen(journal: journal)),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('Add information'),
+              subtitle: const Text('Keep the original and add something new.'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => JournalEditorScreen(
+                      selectedDate: journal.timestamp,
+                      existingJournal: journal,
+                      revisionType: RevisionType.addition,
+                    ),
+                  ),
+                ).then((_) => _refreshData());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_note),
+              title: const Text('I made a mistake (Correction)'),
+              subtitle: const Text('Fix a typo.'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => JournalEditorScreen(
+                      selectedDate: journal.timestamp,
+                      existingJournal: journal,
+                      revisionType: RevisionType.correction,
+                    ),
+                  ),
+                ).then((_) => _refreshData());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.psychology),
+              title: const Text('I see this differently now (Reflection)'),
+              subtitle: const Text('Re-interpret your day.'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => JournalEditorScreen(
+                      selectedDate: journal.timestamp,
+                      existingJournal: journal,
+                      revisionType: RevisionType.reflection,
+                    ),
+                  ),
+                ).then((_) => _refreshData());
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _onAddButtonPressed() async {
     if (_selectedDay == null) return;
 
+    if (SettingsService.isJournalEnabled()) {
+      showModalBottomSheet(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.face),
+                title: const Text('Log Emotion'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openAddEmotionScreen();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.book),
+                title: const Text('Write Journal'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openJournalEditor();
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+    } else {
+      _openAddEmotionScreen();
+    }
+  }
+
+  Future<void> _openAddEmotionScreen() async {
     final bool isToday = isSameDay(_selectedDay, DateTime.now());
 
     if (!isToday) {
@@ -152,9 +278,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _refreshData();
   }
 
+  Future<void> _openJournalEditor() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => JournalEditorScreen(selectedDate: _selectedDay!),
+      ),
+    );
+    _refreshData();
+  }
+
   Widget _buildDayCell(DateTime day, {bool isSelected = false, bool isToday = false, bool isOutside = false}) {
     final dayEntries = _getEntriesForDay(day);
     dayEntries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final dayJournals = _getJournalsForDay(day);
 
     bool hasTrigger = false;
     for (var e in dayEntries) {
@@ -188,13 +325,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.black54, width: 2))
                 : null,
             padding: const EdgeInsets.all(6),
-            child: Text(
-              '${day.day}',
-              style: TextStyle(
-                color: isOutside ? Colors.grey : (dayEntries.isNotEmpty ? Colors.black : (isToday ? Colors.blue : Colors.black87)),
-                fontWeight: isToday || isSelected || dayEntries.isNotEmpty ? FontWeight.bold : FontWeight.normal,
-                fontSize: 16,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    color: isOutside ? Colors.grey : (dayEntries.isNotEmpty ? Colors.black : (isToday ? Colors.blue : Colors.black87)),
+                    fontWeight: isToday || isSelected || dayEntries.isNotEmpty ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 16,
+                  ),
+                ),
+                if (dayJournals.isNotEmpty)
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: Colors.blueGrey,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -205,7 +356,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final selectedDayEntries = _selectedDay != null ? _getEntriesForDay(_selectedDay!) : <EmotionEntry>[];
-    selectedDayEntries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final selectedDayJournals = _selectedDay != null ? _getJournalsForDay(_selectedDay!) : <JournalEntry>[];
+    
+    // Combined list for display
+    final List<dynamic> combinedItems = [...selectedDayEntries, ...selectedDayJournals];
+    combinedItems.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     return Scaffold(
       appBar: AppBar(
@@ -251,61 +406,110 @@ class _HomeScreenState extends State<HomeScreen> {
           const Divider(),
           if (_selectedDay != null)
             Expanded(
-              child: selectedDayEntries.isEmpty
+              child: combinedItems.isEmpty
                   ? const Center(child: Text('No entries for this day.'))
                   : ListView.builder(
-                itemCount: selectedDayEntries.length,
+                itemCount: combinedItems.length,
                 itemBuilder: (context, index) {
-                  final entry = selectedDayEntries[index];
-                  final latest = DatabaseService.getLatestState(entry);
-                  final color = EmotionData.getColor(latest['tier1']);
+                  final item = combinedItems[index];
                   
-                  return Dismissible(
-                    key: Key(entry.id),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20.0),
-                      color: Colors.red,
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    onDismissed: (direction) async {
-                      await DatabaseService.deleteEntry(entry.id);
-                      _refreshData();
-                    },
-                    child: ListTile(
-                      onTap: () => _showRevisionDialog(entry),
-                      leading: CircleAvatar(
-                        backgroundColor: color,
-                        child: Text(
-                          latest['intensity'].toString(),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  if (item is EmotionEntry) {
+                    final latest = DatabaseService.getLatestState(item);
+                    final color = EmotionData.getColor(latest['tier1']);
+                    
+                    return Dismissible(
+                      key: Key(item.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20.0),
+                        color: Colors.red,
+                        child: const Icon(Icons.delete, color: Colors.white),
+                      ),
+                      onDismissed: (direction) async {
+                        await DatabaseService.deleteEntry(item.id);
+                        _refreshData();
+                      },
+                      child: ListTile(
+                        onTap: () => _showRevisionDialog(item),
+                        leading: CircleAvatar(
+                          backgroundColor: color,
+                          child: Text(
+                            latest['intensity'].toString(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Text(latest['tier1']),
+                            if (latest['hasRevisions']) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
+                                size: 16,
+                                color: Colors.grey,
+                              ),
+                            ],
+                            if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.bolt, size: 14, color: Colors.orange),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text('${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}'),
+                        trailing: Text(
+                          DateFormat('HH:mm').format(item.timestamp),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
-                      title: Row(
-                        children: [
-                          Text(latest['tier1']),
-                          if (latest['hasRevisions']) ...[
-                            const SizedBox(width: 8),
-                            Icon(
-                              latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                          ],
-                          if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            const Icon(Icons.bolt, size: 14, color: Colors.orange),
-                          ],
-                        ],
+                    );
+                  } else if (item is JournalEntry) {
+                    final latest = DatabaseService.getLatestJournalState(item);
+                    return Dismissible(
+                      key: Key(item.id),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20.0),
+                        color: Colors.red,
+                        child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      subtitle: Text('${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}'),
-                      trailing: Text(
-                        '${entry.timestamp.hour.toString().padLeft(2, '0')}:${entry.timestamp.minute.toString().padLeft(2, '0')}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      onDismissed: (direction) async {
+                        await DatabaseService.deleteJournal(item.id);
+                        _refreshData();
+                      },
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Colors.blueGrey,
+                          child: Icon(Icons.book, color: Colors.white, size: 20),
+                        ),
+                        title: Row(
+                          children: [
+                            const Text('Journal Entry'),
+                            if (latest['hasRevisions']) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
+                                size: 16,
+                                color: Colors.grey,
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: Text(
+                          latest['content'],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          DateFormat('HH:mm').format(item.timestamp),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        onTap: () => _showJournalRevisionDialog(item),
                       ),
-                    ),
-                  );
+                    );
+                  }
+                  return const SizedBox.shrink();
                 },
               ),
             ),
@@ -314,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _selectedDay != null
           ? FloatingActionButton(
         onPressed: _onAddButtonPressed,
-        tooltip: 'Add Emotion',
+        tooltip: 'Add',
         child: const Icon(Icons.add),
       )
           : null,

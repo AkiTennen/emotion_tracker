@@ -5,6 +5,9 @@ enum RevisionType {
 
   /// A profound re-interpretation of a past emotion, with reasoning.
   reflection,
+
+  /// Adding new information without changing the previous record.
+  addition,
 }
 
 class EmotionEntryRevision {

@@ -19,14 +19,11 @@ This project is currently in early development and serves both as a learning pro
 ## Tech Stack
 
 - **Flutter**
-- Target platforms:
-    - Android
-    - Desktop (Windows, Linux, macOS)
 - No iOS support planned at this time
 - min SDK version 26 (Android 8)
 - target SDK version 35/36
 - Target platforms : Android
-- Database: HIve (local-only)
+- Database: Hive (local-only)
 
 ---
 
@@ -163,13 +160,15 @@ This project is currently in early development and serves both as a learning pro
 #### Unlocking logic:
 - Trigger prompts unlock after Body Map used 3 times
 
-### Phase 4 – Free journal
+### Phase 4 – Free journal [DONE]
 - Long-form text entries
 - Date-based, not forced daily
 - can reference emotions automatically
-- optional journaling prompts
-#### Unlocking logic:
-- Journal unlocks after Trigger used 3 times
+- new data model
+- not behind unlocking anymore but toggled via settings
+- reflection/correction like emotion entry
+- new "add" model to just add to an entry without editing the early text
+- optional journaling prompts (maybe added later)
 
 ### Phase 5 – Data Export 
 - Export entries (full or partial) as PDF

@@ -1,18 +1,24 @@
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import '../models/emotion_entry.dart';
 import '../models/emotion_entry_revision.dart';
+import '../models/journal_entry.dart';
+import '../models/journal_revision.dart';
 
 /// A service class to manage all interactions with the local Hive database.
 class DatabaseService {
   static const String entriesBoxName = 'emotion_entries';
   static const String revisionsBoxName = 'emotion_revisions';
   static const String customEmotionsBoxName = 'custom_emotions';
+  static const String journalsBoxName = 'journals';
+  static const String journalRevisionsBoxName = 'journal_revisions';
 
   static Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox(entriesBoxName);
     await Hive.openBox(revisionsBoxName);
     await Hive.openBox(customEmotionsBoxName);
+    await Hive.openBox(journalsBoxName);
+    await Hive.openBox(journalRevisionsBoxName);
   }
 
   static Future<void> saveEntry(EmotionEntry entry) async {
@@ -22,7 +28,6 @@ class DatabaseService {
 
   static Future<void> deleteEntry(String id) async {
     final box = Hive.box(entriesBoxName);
-    // When deleting an entry, we should also delete its revisions
     await box.delete(id);
     
     final revBox = Hive.box(revisionsBoxName);
@@ -63,12 +68,15 @@ class DatabaseService {
     return getAllEntries().where((e) => e.bodyMapData != null).length;
   }
 
+  static int getTriggerCount() {
+    return getAllEntries().where((e) => e.trigger != null && e.trigger!.isNotEmpty).length;
+  }
+
   static Future<void> saveRevision(EmotionEntryRevision revision) async {
     final box = Hive.box(revisionsBoxName);
     await box.add(revision.toMap());
   }
 
-  /// Gets all revisions for a specific entry, sorted by time.
   static List<EmotionEntryRevision> getRevisionsForEntry(String entryId) {
     final box = Hive.box(revisionsBoxName);
     return box.values
@@ -78,7 +86,6 @@ class DatabaseService {
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
 
-  /// Returns the latest effective state of an entry (original + latest revision).
   static Map<String, dynamic> getLatestState(EmotionEntry entry) {
     final revisions = getRevisionsForEntry(entry.id);
     if (revisions.isEmpty) {
@@ -101,6 +108,72 @@ class DatabaseService {
       'intensity': latest.intensity,
       'bodyMapData': latest.bodyMapData,
       'trigger': latest.trigger,
+      'hasRevisions': true,
+      'latestType': latest.revisionType,
+      'latestTimestamp': latest.timestamp,
+    };
+  }
+
+  // --- Journal Database Logic ---
+
+  static Future<void> saveJournal(JournalEntry journal) async {
+    final box = Hive.box(journalsBoxName);
+    await box.put(journal.id, journal.toMap());
+  }
+
+  static Future<void> deleteJournal(String id) async {
+    final box = Hive.box(journalsBoxName);
+    await box.delete(id);
+    
+    final revBox = Hive.box(journalRevisionsBoxName);
+    final keysToDelete = revBox.keys.where((key) {
+      final rev = JournalRevision.fromMap(revBox.get(key));
+      return rev.journalId == id;
+    }).toList();
+    
+    for (var key in keysToDelete) {
+      await revBox.delete(key);
+    }
+  }
+
+  static List<JournalEntry> getAllJournals() {
+    final box = Hive.box(journalsBoxName);
+    return box.values.map((map) => JournalEntry.fromMap(map)).toList();
+  }
+
+  static List<JournalEntry> getJournalsForDay(DateTime day) {
+    return getAllJournals().where((j) => 
+      j.timestamp.year == day.year && 
+      j.timestamp.month == day.month && 
+      j.timestamp.day == day.day
+    ).toList();
+  }
+
+  static Future<void> saveJournalRevision(JournalRevision revision) async {
+    final box = Hive.box(journalRevisionsBoxName);
+    await box.add(revision.toMap());
+  }
+
+  static List<JournalRevision> getRevisionsForJournal(String journalId) {
+    final box = Hive.box(journalRevisionsBoxName);
+    return box.values
+        .map((map) => JournalRevision.fromMap(map))
+        .where((rev) => rev.journalId == journalId)
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  }
+
+  static Map<String, dynamic> getLatestJournalState(JournalEntry journal) {
+    final revisions = getRevisionsForJournal(journal.id);
+    if (revisions.isEmpty) {
+      return {
+        'content': journal.content,
+        'hasRevisions': false,
+      };
+    }
+    final latest = revisions.last;
+    return {
+      'content': latest.content,
       'hasRevisions': true,
       'latestType': latest.revisionType,
       'latestTimestamp': latest.timestamp,

@@ -242,6 +242,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
+          SwitchListTile(
+            title: const Text('Journaling'),
+            subtitle: const Text(
+              'Enable a separate space for long-form reflection on your day.',
+            ),
+            value: SettingsService.isJournalEnabled(),
+            onChanged: (bool value) async {
+              await SettingsService.setJournalEnabled(value);
+              setState(() {});
+            },
+          ),
+          const Divider(),
           ListTile(
             title: const Text('Body Map Type'),
             subtitle: Text('Current: ${_currentBodyType.name[0].toUpperCase() + _currentBodyType.name.substring(1)}'),
