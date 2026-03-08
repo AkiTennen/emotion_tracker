@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/settings_service.dart';
 
 class BodyMapScreen extends StatefulWidget {
@@ -107,7 +108,6 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 final localPos = details.localPosition;
                 setState(() {
                   if (isPortrait) {
-                    // Vertical split (Top/Bottom)
                     final midY = height / 2;
                     if (localPos.dy < midY) {
                       _frontPaths.add([Offset(localPos.dx / width, localPos.dy / midY)]);
@@ -115,7 +115,6 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                       _backPaths.add([Offset(localPos.dx / width, (localPos.dy - midY) / midY)]);
                     }
                   } else {
-                    // Horizontal split (Left/Right)
                     final midX = width / 2;
                     if (localPos.dx < midX) {
                       _frontPaths.add([Offset(localPos.dx / midX, localPos.dy / height)]);
@@ -147,12 +146,12 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
               },
               child: Stack(
                 children: [
-                  // Silhouettes
+                  // SVGs
                   Flex(
                     direction: isPortrait ? Axis.vertical : Axis.horizontal,
                     children: [
-                      Expanded(child: _buildPlaceholderBox('FRONT')),
-                      Expanded(child: _buildPlaceholderBox('BACK')),
+                      Expanded(child: _buildSvgAsset('front')),
+                      Expanded(child: _buildSvgAsset('back')),
                     ],
                   ),
                   // Drawing Overlay
@@ -174,18 +173,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     );
   }
 
-  Widget _buildPlaceholderBox(String label) {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        border: Border.all(color: Colors.grey),
-      ),
-      child: Center(
-        child: Text(
-          '$label\n(${_bodyType.name.toUpperCase()})',
-          textAlign: TextAlign.center,
-        ),
+  Widget _buildSvgAsset(String side) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SvgPicture.asset(
+        'assets/body_maps/${side}_${_bodyType.name}.svg',
+        fit: BoxFit.contain,
+        // Using a soft color filter to make the silhouette respectful and non-intrusive
+        colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
       ),
     );
   }

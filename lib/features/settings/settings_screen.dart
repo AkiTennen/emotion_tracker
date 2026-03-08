@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/settings_service.dart';
 import '../../services/reminder_service.dart';
 
@@ -161,9 +162,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 16),
-                  // PREVIEW BOXES
+                  // PREVIEW SVGS
                   Container(
-                    height: 150,
+                    height: 200,
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
@@ -171,9 +172,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: Row(
                       children: [
-                        Expanded(child: Center(child: Text('FRONT\n(${tempType.name})', textAlign: TextAlign.center, style: const TextStyle(fontSize: 10)))),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: SvgPicture.asset(
+                              'assets/body_maps/front_${tempType.name}.svg',
+                              colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
+                            ),
+                          ),
+                        ),
                         const VerticalDivider(),
-                        Expanded(child: Center(child: Text('BACK\n(${tempType.name})', textAlign: TextAlign.center, style: const TextStyle(fontSize: 10)))),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: SvgPicture.asset(
+                              'assets/body_maps/back_${tempType.name}.svg',
+                              colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
