@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/settings_service.dart';
@@ -24,12 +25,22 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   late List<List<Offset>> _frontPaths;
   late List<List<Offset>> _backPaths;
   late BodyType _bodyType;
+  final TransformationController _transformationController = TransformationController();
+  
+  bool _isDrawing = false;
+  bool _hadMultiplePointers = false;
 
   @override
   void initState() {
     super.initState();
     _bodyType = widget.overrideBodyType ?? SettingsService.getBodyType();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
   }
 
   void _loadInitialData() {
@@ -102,75 +113,122 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
           final isPortrait = height > width;
 
           return InteractiveViewer(
+            transformationController: _transformationController,
             maxScale: 5.0,
-            child: GestureDetector(
-              onPanStart: widget.readOnly ? null : (details) {
-                final localPos = details.localPosition;
-                setState(() {
-                  if (isPortrait) {
-                    final midY = height / 2;
-                    if (localPos.dy < midY) {
-                      _frontPaths.add([Offset(localPos.dx / width, localPos.dy / midY)]);
-                    } else {
-                      _backPaths.add([Offset(localPos.dx / width, (localPos.dy - midY) / midY)]);
-                    }
-                  } else {
-                    final midX = width / 2;
-                    if (localPos.dx < midX) {
-                      _frontPaths.add([Offset(localPos.dx / midX, localPos.dy / height)]);
-                    } else {
-                      _backPaths.add([Offset((localPos.dx - midX) / midX, localPos.dy / height)]);
-                    }
-                  }
-                });
-              },
-              onPanUpdate: widget.readOnly ? null : (details) {
-                final localPos = details.localPosition;
-                setState(() {
-                  if (isPortrait) {
-                    final midY = height / 2;
-                    if (localPos.dy < midY) {
-                      _frontPaths.last.add(Offset(localPos.dx / width, localPos.dy / midY));
-                    } else {
-                      _backPaths.last.add(Offset(localPos.dx / width, (localPos.dy - midY) / midY));
-                    }
-                  } else {
-                    final midX = width / 2;
-                    if (localPos.dx < midX) {
-                      _frontPaths.last.add(Offset(localPos.dx / midX, localPos.dy / height));
-                    } else {
-                      _backPaths.last.add(Offset((localPos.dx - midX) / midX, localPos.dy / height));
-                    }
-                  }
-                });
-              },
-              child: Stack(
-                children: [
-                  // SVGs
-                  Flex(
-                    direction: isPortrait ? Axis.vertical : Axis.horizontal,
-                    children: [
-                      Expanded(child: _buildSvgAsset('front')),
-                      Expanded(child: _buildSvgAsset('back')),
-                    ],
+            minScale: 1.0,
+            panEnabled: true,
+            scaleEnabled: true,
+            onInteractionStart: (details) {
+              if (widget.readOnly) return;
+              
+              if (details.pointerCount == 1) {
+                _isDrawing = true;
+                _hadMultiplePointers = false;
+                _handleInteraction(details.localFocalPoint, true, isPortrait, width, height);
+              } else {
+                _isDrawing = false;
+                _hadMultiplePointers = true;
+              }
+            },
+            onInteractionUpdate: (details) {
+              if (widget.readOnly) return;
+
+              if (details.pointerCount > 1) {
+                _hadMultiplePointers = true;
+                if (_isDrawing) {
+                  setState(() {
+                    _isDrawing = false;
+                    // Remove accidental path created when first finger landed
+                    if (_frontPaths.isNotEmpty && _frontPaths.last.length < 5) _frontPaths.removeLast();
+                    if (_backPaths.isNotEmpty && _backPaths.last.length < 5) _backPaths.removeLast();
+                  });
+                }
+                return;
+              }
+
+              // Only continue drawing if we ONLY had one finger the whole time
+              if (_isDrawing && details.pointerCount == 1 && !_hadMultiplePointers) {
+                _handleInteraction(details.localFocalPoint, false, isPortrait, width, height);
+              }
+            },
+            onInteractionEnd: (details) {
+              _isDrawing = false;
+              _hadMultiplePointers = false;
+            },
+            child: Stack(
+              children: [
+                Flex(
+                  direction: isPortrait ? Axis.vertical : Axis.horizontal,
+                  children: [
+                    Expanded(child: _buildSvgAsset('front')),
+                    Expanded(child: _buildSvgAsset('back')),
+                  ],
+                ),
+                CustomPaint(
+                  size: Size(width, height),
+                  painter: BodyMapPainter(
+                    frontPaths: _frontPaths,
+                    backPaths: _backPaths,
+                    color: widget.emotionColor,
+                    isPortrait: isPortrait,
                   ),
-                  // Drawing Overlay
-                  CustomPaint(
-                    size: Size(width, height),
-                    painter: BodyMapPainter(
-                      frontPaths: _frontPaths,
-                      backPaths: _backPaths,
-                      color: widget.emotionColor,
-                      isPortrait: isPortrait,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },
       ),
     );
+  }
+
+  void _handleInteraction(Offset localPoint, bool isStart, bool isPortrait, double width, double height) {
+    final translatedPos = _getTranslatedPoint(localPoint);
+
+    setState(() {
+      if (isPortrait) {
+        final midY = height / 2;
+        if (translatedPos.dy < midY) {
+          final point = Offset(translatedPos.dx / width, translatedPos.dy / midY);
+          if (isStart) {
+            _frontPaths.add([point]);
+          } else if (_frontPaths.isNotEmpty && _isDrawing) {
+            _frontPaths.last.add(point);
+          }
+        } else {
+          final point = Offset(translatedPos.dx / width, (translatedPos.dy - midY) / midY);
+          if (isStart) {
+            _backPaths.add([point]);
+          } else if (_backPaths.isNotEmpty && _isDrawing) {
+            _backPaths.last.add(point);
+          }
+        }
+      } else {
+        final midX = width / 2;
+        if (translatedPos.dx < midX) {
+          final point = Offset(translatedPos.dx / midX, translatedPos.dy / height);
+          if (isStart) {
+            _frontPaths.add([point]);
+          } else if (_frontPaths.isNotEmpty && _isDrawing) {
+            _frontPaths.last.add(point);
+          }
+        } else {
+          final point = Offset((translatedPos.dx - midX) / midX, translatedPos.dy / height);
+          if (isStart) {
+            _backPaths.add([point]);
+          } else if (_backPaths.isNotEmpty && _isDrawing) {
+            _backPaths.last.add(point);
+          }
+        }
+      }
+    });
+  }
+
+  Offset _getTranslatedPoint(Offset point) {
+    final Matrix4 transform = _transformationController.value;
+    final double scale = transform.getMaxScaleOnAxis();
+    final double x = (point.dx - transform.storage[12]) / scale;
+    final double y = (point.dy - transform.storage[13]) / scale;
+    return Offset(x, y);
   }
 
   Widget _buildSvgAsset(String side) {
@@ -179,7 +237,6 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
       child: SvgPicture.asset(
         'assets/body_maps/${side}_${_bodyType.name}.svg',
         fit: BoxFit.contain,
-        // Using a soft color filter to make the silhouette respectful and non-intrusive
         colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
       ),
     );
@@ -203,7 +260,7 @@ class BodyMapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color.withOpacity(0.5)
-      ..strokeWidth = 15.0
+      ..strokeWidth = 8.0
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
@@ -211,7 +268,6 @@ class BodyMapPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
 
-    // Draw Front Paths
     for (var path in frontPaths) {
       if (path.isEmpty) continue;
       final screenPath = Path();
@@ -231,7 +287,6 @@ class BodyMapPainter extends CustomPainter {
       canvas.drawPath(screenPath, paint);
     }
 
-    // Draw Back Paths
     for (var path in backPaths) {
       if (path.isEmpty) continue;
       final screenPath = Path();
