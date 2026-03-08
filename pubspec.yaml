@@ -31,6 +31,9 @@ dependencies:
   # INTL for date formatting (Updated to resolve dependency conflict)
   intl: ^0.20.2
 
+  # SVG Support
+  flutter_svg: ^2.0.10+1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

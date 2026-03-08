@@ -5,6 +5,7 @@ import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
+import 'body_map_screen.dart';
 
 class AddEmotionScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -28,13 +29,18 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   String? _selectedTier3;
   double _intensity = 1.0;
   String? _reflectionText;
+  Map<String, dynamic>? _bodyMapData;
+  String? _triggerText;
 
   bool _isTier2Unlocked = false;
   bool _isTier3Unlocked = false;
   bool _isIntensityUnlocked = false;
+  bool _isBodyMapUnlocked = false;
+  bool _isTriggerUnlocked = false;
 
   final TextEditingController _customController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
+  final TextEditingController _triggerController = TextEditingController();
 
   @override
   void initState() {
@@ -45,6 +51,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       _selectedTier2 = widget.existingEntry!.tier2Emotion;
       _selectedTier3 = widget.existingEntry!.tier3Emotion;
       _intensity = widget.existingEntry!.intensity.toDouble();
+      _bodyMapData = widget.existingEntry!.bodyMapData;
+      _triggerText = widget.existingEntry!.trigger;
+      _triggerController.text = _triggerText ?? '';
     }
   }
 
@@ -52,6 +61,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   void dispose() {
     _customController.dispose();
     _reflectionController.dispose();
+    _triggerController.dispose();
     super.dispose();
   }
 
@@ -61,6 +71,8 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         _isTier2Unlocked = true;
         _isTier3Unlocked = true;
         _isIntensityUnlocked = true;
+        _isBodyMapUnlocked = true;
+        _isTriggerUnlocked = true;
       });
       return;
     }
@@ -69,6 +81,8 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       _isTier2Unlocked = DatabaseService.getTier1Count() >= 7;
       _isTier3Unlocked = DatabaseService.getTier2Count() >= 7;
       _isIntensityUnlocked = DatabaseService.getTier3Count() >= 7;
+      _isBodyMapUnlocked = DatabaseService.getIntensityCount() >= 7;
+      _isTriggerUnlocked = DatabaseService.getBodyMapCount() >= 3;
     });
   }
 
@@ -225,6 +239,8 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         tier3Emotion: _selectedTier3,
         intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
         reflectionText: _reflectionText,
+        bodyMapData: _bodyMapData,
+        trigger: _triggerText,
       );
       await DatabaseService.saveRevision(revision);
     } else {
@@ -237,11 +253,52 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         tier2Emotion: _selectedTier2,
         tier3Emotion: _selectedTier3,
         intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
+        bodyMapData: _bodyMapData,
+        trigger: _triggerText,
       );
       await DatabaseService.saveEntry(entry);
     }
     
     if (mounted) Navigator.pop(context);
+  }
+
+  void _openBodyMap() async {
+    if (!SettingsService.isBodyMapIntroShown()) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Listening to your body'),
+          content: const Text(
+            'Sometimes emotions aren\'t just in our heads—they\'re in our bodies too.\n\n'
+            'In this screen, you can "draw" where you feel this emotion. Use two fingers to zoom in and pan for more detail.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Got it'),
+            ),
+          ],
+        ),
+      );
+      await SettingsService.setBodyMapIntroShown(true);
+    }
+
+    if (!mounted) return;
+
+    final color = _selectedTier1 != null ? EmotionData.getColor(_selectedTier1!) : Colors.grey;
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BodyMapScreen(
+          initialData: _bodyMapData,
+          emotionColor: color,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() => _bodyMapData = result);
+    }
   }
 
   @override
@@ -420,6 +477,103 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                     ),
                   ),
               ],
+
+              if (_isIntensityUnlocked) ...[
+                const Divider(height: 32),
+                Text(
+                  'Body Map',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: _isBodyMapUnlocked ? null : Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_isBodyMapUnlocked)
+                  InkWell(
+                    onTap: _openBodyMap,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.accessibility_new, color: color ?? Colors.grey),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Where do you feel this?'),
+                                if (_bodyMapData != null)
+                                  const Text(
+                                    'Area marked',
+                                    style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (_bodyMapData != null)
+                            // A tiny visual preview of the drawing
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.grey[300]!),
+                              ),
+                              child: CustomPaint(
+                                painter: BodyMapSmallPreviewPainter(
+                                  data: _bodyMapData!,
+                                  color: color ?? Colors.grey,
+                                ),
+                              ),
+                            ),
+                          const Icon(Icons.chevron_right),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      'In time, you\'ll be able to mark where in your body you feel this.',
+                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+              ],
+
+              if (_isBodyMapUnlocked) ...[
+                const Divider(height: 32),
+                Text(
+                  'What influenced this?',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: _isTriggerUnlocked ? null : Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (_isTriggerUnlocked)
+                  TextField(
+                    controller: _triggerController,
+                    decoration: const InputDecoration(
+                      hintText: 'Was it a person, place, or event?',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => _triggerText = value,
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      'You\'ll soon be able to note down external triggers or influences.',
+                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    ),
+                  ),
+              ],
             ],
 
             if (widget.revisionType == RevisionType.reflection) ...[
@@ -455,4 +609,53 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       ),
     );
   }
+}
+
+class BodyMapSmallPreviewPainter extends CustomPainter {
+  final Map<String, dynamic> data;
+  final Color color;
+
+  BodyMapSmallPreviewPainter({required this.data, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final midX = size.width / 2;
+    final front = data['frontPaths'] as List?;
+    final back = data['backPaths'] as List?;
+
+    if (front != null) {
+      for (var path in front) {
+        final screenPath = Path();
+        final points = path as List;
+        if (points.isEmpty) continue;
+        screenPath.moveTo(points[0][0] * midX, points[0][1] * size.height);
+        for (var i = 1; i < points.length; i++) {
+          screenPath.lineTo(points[i][0] * midX, points[i][1] * size.height);
+        }
+        canvas.drawPath(screenPath, paint);
+      }
+    }
+
+    if (back != null) {
+      for (var path in back) {
+        final screenPath = Path();
+        final points = path as List;
+        if (points.isEmpty) continue;
+        screenPath.moveTo((points[0][0] * midX) + midX, points[0][1] * size.height);
+        for (var i = 1; i < points.length; i++) {
+          screenPath.lineTo((points[0][0] * midX) + midX, points[0][1] * size.height);
+        }
+        canvas.drawPath(screenPath, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

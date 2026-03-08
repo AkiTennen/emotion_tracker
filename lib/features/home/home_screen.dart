@@ -47,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
       tier2Emotion: latest['tier2'],
       tier3Emotion: latest['tier3'],
       intensity: latest['intensity'],
+      bodyMapData: latest['bodyMapData'],
+      trigger: latest['trigger'],
     );
 
     showModalBottomSheet(
@@ -113,7 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onAddButtonPressed() async {
     if (_selectedDay == null) return;
 
-    // Mindful Check: Prompt user if adding an entry for any day that is NOT today.
     final bool isToday = isSameDay(_selectedDay, DateTime.now());
 
     if (!isToday) {
@@ -155,6 +156,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final dayEntries = _getEntriesForDay(day);
     dayEntries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
+    bool hasTrigger = false;
+    for (var e in dayEntries) {
+      final latest = DatabaseService.getLatestState(e);
+      if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) {
+        hasTrigger = true;
+        break;
+      }
+    }
+
     return Center(
       child: Stack(
         alignment: Alignment.center,
@@ -170,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     intensity: latest['intensity'],
                   );
                 }).toList(),
+                hasTrigger: hasTrigger,
               ),
             ),
           Container(
@@ -282,6 +293,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.grey,
                             ),
                           ],
+                          if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            const Icon(Icons.bolt, size: 14, color: Colors.orange),
+                          ],
                         ],
                       ),
                       subtitle: Text('${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}'),
@@ -315,8 +330,9 @@ class PieSegment {
 
 class EmotionPiePainter extends CustomPainter {
   final List<PieSegment> segments;
+  final bool hasTrigger;
 
-  EmotionPiePainter({required this.segments});
+  EmotionPiePainter({required this.segments, this.hasTrigger = false});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -343,6 +359,14 @@ class EmotionPiePainter extends CustomPainter {
       startAngle += sweepAngle;
     }
 
+    if (hasTrigger) {
+      final triggerPaint = Paint()
+        ..color = Colors.orange
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+      canvas.drawCircle(center, radius + 2, triggerPaint);
+    }
+
     if (segments.length > 1) {
       final borderPaint = Paint()
         ..color = Colors.white
@@ -353,5 +377,5 @@ class EmotionPiePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant EmotionPiePainter oldDelegate) => true;
 }

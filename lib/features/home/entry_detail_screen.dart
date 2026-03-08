@@ -4,6 +4,9 @@ import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
+import '../../services/settings_service.dart';
+import '../add_emotion/body_map_screen.dart';
+import '../add_emotion/add_emotion_screen.dart';
 
 class EntryDetailScreen extends StatelessWidget {
   final EmotionEntry entry;
@@ -26,14 +29,14 @@ class EntryDetailScreen extends StatelessWidget {
             _buildTimelineTile(
               context,
               title: 'Original Moment',
-              // SHOW: Real-world creation date/time
               timestamp: entry.createdAt, 
               tier1: entry.tier1Emotion,
               tier2: entry.tier2Emotion,
               tier3: entry.tier3Emotion,
               intensity: entry.intensity,
+              bodyMapData: entry.bodyMapData,
+              trigger: entry.trigger,
               isOriginal: true,
-              // SUBTITLE: The date it refers to on the calendar
               description: 'Refers to ${DateFormat('MMM d, HH:mm').format(entry.timestamp)}',
             ),
             ...revisions.map((rev) => _buildTimelineTile(
@@ -44,6 +47,8 @@ class EntryDetailScreen extends StatelessWidget {
               tier2: rev.tier2Emotion,
               tier3: rev.tier3Emotion,
               intensity: rev.intensity,
+              bodyMapData: rev.bodyMapData,
+              trigger: rev.trigger,
               note: rev.reflectionText,
               icon: rev.revisionType == RevisionType.correction ? Icons.edit_note : Icons.psychology,
             )),
@@ -61,6 +66,8 @@ class EntryDetailScreen extends StatelessWidget {
     String? tier2,
     String? tier3,
     required int intensity,
+    Map<String, dynamic>? bodyMapData,
+    String? trigger,
     String? note,
     String? description,
     bool isOriginal = false,
@@ -126,12 +133,88 @@ class EntryDetailScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '$tier1 ${tier2 != null ? "• $tier2" : ""} ${tier3 != null ? "• $tier3" : ""}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$tier1 ${tier2 != null ? "• $tier2" : ""} ${tier3 != null ? "• $tier3" : ""}',
+                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text('Intensity: $intensity', style: Theme.of(context).textTheme.bodySmall),
+                                  if (trigger != null && trigger.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.bolt, size: 14, color: Colors.orange),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            'Trigger: $trigger',
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              fontStyle: FontStyle.italic,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (bodyMapData != null)
+                              GestureDetector(
+                                onTap: () {
+                                  final typeStr = bodyMapData['bodyType'] as String?;
+                                  final bodyType = typeStr != null 
+                                      ? BodyType.values.byName(typeStr) 
+                                      : SettingsService.getBodyType();
+                                      
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => BodyMapScreen(
+                                        initialData: bodyMapData,
+                                        emotionColor: color,
+                                        readOnly: true,
+                                        overrideBodyType: bodyType,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: color.withOpacity(0.3)),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      CustomPaint(
+                                        size: const Size(60, 60),
+                                        painter: BodyMapSmallPreviewPainter(
+                                          data: bodyMapData,
+                                          color: color,
+                                        ),
+                                      ),
+                                      const Positioned(
+                                        right: 2,
+                                        bottom: 2,
+                                        child: Icon(Icons.zoom_in, size: 14, color: Colors.grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text('Intensity: $intensity', style: Theme.of(context).textTheme.bodySmall),
                         if (note != null && note.isNotEmpty) ...[
                           const Divider(),
                           Text(

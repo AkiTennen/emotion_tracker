@@ -16,6 +16,12 @@ class EmotionEntryRevision {
   final String? tier3Emotion;
   final int intensity;
   final String? reflectionText;
+  
+  /// Stores the state of the body map at the time of this revision.
+  final Map<String, dynamic>? bodyMapData;
+
+  /// Optional note about what influenced or triggered the emotion.
+  final String? trigger;
 
   EmotionEntryRevision({
     required this.emotionEntryId,
@@ -25,6 +31,8 @@ class EmotionEntryRevision {
     this.tier3Emotion,
     required this.intensity,
     this.reflectionText,
+    this.bodyMapData,
+    this.trigger,
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
@@ -39,6 +47,8 @@ class EmotionEntryRevision {
       'tier3Emotion': tier3Emotion,
       'intensity': intensity,
       'reflectionText': reflectionText,
+      'bodyMapData': bodyMapData,
+      'trigger': trigger,
     };
   }
 
@@ -53,6 +63,8 @@ class EmotionEntryRevision {
       tier3Emotion: map['tier3Emotion'] as String?,
       intensity: map['intensity'] as int,
       reflectionText: map['reflectionText'] as String?,
+      bodyMapData: map['bodyMapData'] != null ? Map<String, dynamic>.from(map['bodyMapData'] as Map) : null,
+      trigger: map['trigger'] as String?,
     );
   }
 }

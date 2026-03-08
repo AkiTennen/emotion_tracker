@@ -9,9 +9,11 @@ class EmotionEntry {
   String? tier3Emotion;
   int intensity;
   
-  // Body Map Coordinates (Normalized 0.0 to 1.0)
-  double? bodyX;
-  double? bodyY;
+  /// Stores body map drawing data as a JSON-compatible map.
+  Map<String, dynamic>? bodyMapData;
+
+  /// Optional note about what influenced or triggered the emotion.
+  String? trigger;
 
   EmotionEntry({
     required this.id,
@@ -21,31 +23,9 @@ class EmotionEntry {
     this.tier2Emotion,
     this.tier3Emotion,
     this.intensity = 0,
-    this.bodyX,
-    this.bodyY,
+    this.bodyMapData,
+    this.trigger,
   });
-
-  static EmotionEntry create({
-    required String tier1Emotion,
-    String? tier2Emotion,
-    String? tier3Emotion,
-    int intensity = 0,
-    double? bodyX,
-    double? bodyY,
-  }) {
-    final now = DateTime.now();
-    return EmotionEntry(
-      id: const Uuid().v4(),
-      timestamp: now,
-      createdAt: now,
-      tier1Emotion: tier1Emotion,
-      tier2Emotion: tier2Emotion,
-      tier3Emotion: tier3Emotion,
-      intensity: intensity,
-      bodyX: bodyX,
-      bodyY: bodyY,
-    );
-  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -56,8 +36,8 @@ class EmotionEntry {
       'tier2Emotion': tier2Emotion,
       'tier3Emotion': tier3Emotion,
       'intensity': intensity,
-      'bodyX': bodyX,
-      'bodyY': bodyY,
+      'bodyMapData': bodyMapData,
+      'trigger': trigger,
     };
   }
 
@@ -72,8 +52,8 @@ class EmotionEntry {
       tier2Emotion: map['tier2Emotion'] as String?,
       tier3Emotion: map['tier3Emotion'] as String?,
       intensity: map['intensity'] as int,
-      bodyX: map['bodyX'] as double?,
-      bodyY: map['bodyY'] as double?,
+      bodyMapData: map['bodyMapData'] != null ? Map<String, dynamic>.from(map['bodyMapData'] as Map) : null,
+      trigger: map['trigger'] as String?,
     );
   }
 }

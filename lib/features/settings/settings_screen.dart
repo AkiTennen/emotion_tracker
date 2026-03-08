@@ -12,11 +12,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   List<Reminder> _reminders = [];
   final List<TextEditingController> _controllers = [];
+  late BodyType _currentBodyType;
 
   @override
   void initState() {
     super.initState();
     _loadReminders();
+    _currentBodyType = SettingsService.getBodyType();
     // Proactively request permissions for background alarms
     ReminderService.requestPermissions();
   }
@@ -37,7 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _saveReminders() async {
-    // 1. Sync controller text to reminder objects
     final updatedReminders = <Reminder>[];
     for (int i = 0; i < _reminders.length; i++) {
       updatedReminders.add(Reminder(
@@ -49,7 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ));
     }
 
-    // 2. Save to database & schedule alarms
     await SettingsService.saveReminders(updatedReminders);
     
     if (mounted) {
@@ -92,6 +92,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _showUnlockAllDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Unlock everything?'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This will immediately unlock:'),
+            SizedBox(height: 8),
+            Text('• Secondary & Tertiary emotions'),
+            Text('• Intensity slider'),
+            Text('• Body Map feature'),
+            Text('• Trigger Prompts'),
+            SizedBox(height: 16),
+            Text('You can turn this off later to return to your natural progression.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await SettingsService.setSkipUnlocking(true);
+              if (mounted) {
+                setState(() {});
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Unlock All'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBodyTypePicker() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        BodyType tempType = _currentBodyType;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Select Body Type'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('This changes the silhouette used in the body map.'),
+                  const SizedBox(height: 16),
+                  DropdownButton<BodyType>(
+                    value: tempType,
+                    isExpanded: true,
+                    onChanged: (BodyType? newValue) {
+                      if (newValue != null) {
+                        setDialogState(() => tempType = newValue);
+                      }
+                    },
+                    items: BodyType.values.map((BodyType type) {
+                      return DropdownMenuItem<BodyType>(
+                        value: type,
+                        child: Text(type.name[0].toUpperCase() + type.name.substring(1)),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  // PREVIEW BOXES
+                  Container(
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(child: Center(child: Text('FRONT\n(${tempType.name})', textAlign: TextAlign.center, style: const TextStyle(fontSize: 10)))),
+                        const VerticalDivider(),
+                        Expanded(child: Center(child: Text('BACK\n(${tempType.name})', textAlign: TextAlign.center, style: const TextStyle(fontSize: 10)))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Sample Preview', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () async {
+                    await SettingsService.setBodyType(tempType);
+                    setState(() => _currentBodyType = tempType);
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,7 +206,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Settings'),
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 100), // Space for FAB
+        padding: const EdgeInsets.only(bottom: 100),
         children: [
           SwitchListTile(
             title: const Text('Enable all features'),
@@ -109,9 +216,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             isThreeLine: true,
             value: SettingsService.shouldSkipUnlocking(),
             onChanged: (bool value) async {
-              await SettingsService.setSkipUnlocking(value);
-              setState(() {});
+              if (value) {
+                _showUnlockAllDialog();
+              } else {
+                await SettingsService.setSkipUnlocking(false);
+                setState(() {});
+              }
             },
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('Body Map Type'),
+            subtitle: Text('Current: ${_currentBodyType.name[0].toUpperCase() + _currentBodyType.name.substring(1)}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showBodyTypePicker,
           ),
           const Divider(),
           Padding(
@@ -153,7 +271,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         const Spacer(),
-                        // Instant Test Button
                         TextButton.icon(
                           onPressed: () {
                             final testReminder = Reminder(

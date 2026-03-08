@@ -55,6 +55,14 @@ class DatabaseService {
     return getAllEntries().where((e) => e.tier3Emotion != null).length;
   }
 
+  static int getIntensityCount() {
+    return getAllEntries().where((e) => e.intensity > 0).length;
+  }
+
+  static int getBodyMapCount() {
+    return getAllEntries().where((e) => e.bodyMapData != null).length;
+  }
+
   static Future<void> saveRevision(EmotionEntryRevision revision) async {
     final box = Hive.box(revisionsBoxName);
     await box.add(revision.toMap());
@@ -79,6 +87,8 @@ class DatabaseService {
         'tier2': entry.tier2Emotion,
         'tier3': entry.tier3Emotion,
         'intensity': entry.intensity,
+        'bodyMapData': entry.bodyMapData,
+        'trigger': entry.trigger,
         'hasRevisions': false,
       };
     }
@@ -89,6 +99,8 @@ class DatabaseService {
       'tier2': latest.tier2Emotion,
       'tier3': latest.tier3Emotion,
       'intensity': latest.intensity,
+      'bodyMapData': latest.bodyMapData,
+      'trigger': latest.trigger,
       'hasRevisions': true,
       'latestType': latest.revisionType,
       'latestTimestamp': latest.timestamp,

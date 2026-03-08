@@ -138,8 +138,24 @@ This project is currently in early development and serves both as a learning pro
 #### Unlocking logic:
 - Body map unlocks after Intensity used 7 times
 - Intro screen explain body map usage
+### Phase 2 - Intensity and Visual Reflection [DONE]
+- Intensity slider
+- stored per entry
+- visualized by opacity in calendar view
+- Intensity is optional and may remain 0
+- Intensity usage counts toward unlock only when >0
+#### Body awareness [DONE]
+- Prompt
+- Interactive, zoomable body map (male, female, neutral) SVGs
+- Normalized coordinate paths stored
+- Optional per entry
+- Thumbnail in History screen
+- History Entry clickable, Read only mode
+#### Unlocking logic [DONE]
+- Body map unlocks after Intensity used 7 times
+- Intro screen explain body map usage
 
-### Phase 3 – Trigger prompts
+### Phase 3 – Trigger prompts [DONE]
 - Optional Prompt "Do you want to note what influenced this?"
 - short free-text input or keywords
 - never mandatory
