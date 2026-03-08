@@ -27,8 +27,8 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   late BodyType _bodyType;
   final TransformationController _transformationController = TransformationController();
   
-  // Start in Navigation mode so users can zoom in first
-  bool _isDrawingMode = false; 
+  bool _isDrawingMode = false;
+  String? _activeSide; // 'front' or 'back' to lock side during a stroke
 
   @override
   void initState() {
@@ -118,17 +118,26 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 transformationController: _transformationController,
                 maxScale: 5.0,
                 minScale: 1.0,
-                // Nav mode: zoom/pan ON. Drawing mode: zoom/pan OFF.
                 panEnabled: !_isDrawingMode || widget.readOnly,
                 scaleEnabled: !_isDrawingMode || widget.readOnly,
                 onInteractionStart: (details) {
                   if (widget.readOnly || !_isDrawingMode || details.pointerCount != 1) return;
+                  
+                  // Determine side and lock it
+                  final translatedPos = _getTranslatedPoint(details.localFocalPoint);
+                  if (isPortrait) {
+                    _activeSide = translatedPos.dy < (height / 2) ? 'front' : 'back';
+                  } else {
+                    _activeSide = translatedPos.dx < (width / 2) ? 'front' : 'back';
+                  }
+                  
                   _handleInteraction(details.localFocalPoint, true, isPortrait, width, height);
                 },
                 onInteractionUpdate: (details) {
                   if (widget.readOnly || !_isDrawingMode || details.pointerCount != 1) return;
                   _handleInteraction(details.localFocalPoint, false, isPortrait, width, height);
                 },
+                onInteractionEnd: (_) => _activeSide = null,
                 child: Stack(
                   children: [
                     Flex(
@@ -153,7 +162,6 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
             },
           ),
           
-          // MODE TOGGLE
           if (!widget.readOnly)
             Positioned(
               bottom: 24,
@@ -196,42 +204,32 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   }
 
   void _handleInteraction(Offset localPoint, bool isStart, bool isPortrait, double width, double height) {
+    if (_activeSide == null) return;
+    
     final translatedPos = _getTranslatedPoint(localPoint);
 
     setState(() {
       if (isPortrait) {
         final midY = height / 2;
-        if (translatedPos.dy < midY) {
+        if (_activeSide == 'front') {
           final point = Offset(translatedPos.dx / width, translatedPos.dy / midY);
-          if (isStart) {
-            _frontPaths.add([point]);
-          } else if (_frontPaths.isNotEmpty) {
-            _frontPaths.last.add(point);
-          }
+          if (isStart) _frontPaths.add([point]); 
+          else if (_frontPaths.isNotEmpty) _frontPaths.last.add(point);
         } else {
           final point = Offset(translatedPos.dx / width, (translatedPos.dy - midY) / midY);
-          if (isStart) {
-            _backPaths.add([point]);
-          } else if (_backPaths.isNotEmpty) {
-            _backPaths.last.add(point);
-          }
+          if (isStart) _backPaths.add([point]); 
+          else if (_backPaths.isNotEmpty) _backPaths.last.add(point);
         }
       } else {
         final midX = width / 2;
-        if (translatedPos.dx < midX) {
+        if (_activeSide == 'front') {
           final point = Offset(translatedPos.dx / midX, translatedPos.dy / height);
-          if (isStart) {
-            _frontPaths.add([point]);
-          } else if (_frontPaths.isNotEmpty) {
-            _frontPaths.last.add(point);
-          }
+          if (isStart) _frontPaths.add([point]); 
+          else if (_frontPaths.isNotEmpty) _frontPaths.last.add(point);
         } else {
           final point = Offset((translatedPos.dx - midX) / midX, translatedPos.dy / height);
-          if (isStart) {
-            _backPaths.add([point]);
-          } else if (_backPaths.isNotEmpty) {
-            _backPaths.last.add(point);
-          }
+          if (isStart) _backPaths.add([point]); 
+          else if (_backPaths.isNotEmpty) _backPaths.last.add(point);
         }
       }
     });
@@ -345,7 +343,7 @@ class BodyMapPainter extends CustomPainter {
         final midX = width / 2;
         screenPath.moveTo(path[0].dx * midX, path[0].dy * height);
         for (var i = 1; i < path.length; i++) {
-          screenPath.lineTo(path[i].dx * width, path[i].dy * height);
+          screenPath.lineTo(path[i].dx * midX, path[i].dy * height);
         }
       }
       canvas.drawPath(screenPath, paint);
