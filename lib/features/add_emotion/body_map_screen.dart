@@ -27,8 +27,8 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   late BodyType _bodyType;
   final TransformationController _transformationController = TransformationController();
   
-  bool _isDrawing = false;
-  bool _hadMultiplePointers = false;
+  // Start in Navigation mode so users can zoom in first
+  bool _isDrawingMode = false; 
 
   @override
   void initState() {
@@ -106,77 +106,91 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
               ),
             ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          final isPortrait = height > width;
+      body: Stack(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final height = constraints.maxHeight;
+              final isPortrait = height > width;
 
-          return InteractiveViewer(
-            transformationController: _transformationController,
-            maxScale: 5.0,
-            minScale: 1.0,
-            panEnabled: true,
-            scaleEnabled: true,
-            onInteractionStart: (details) {
-              if (widget.readOnly) return;
-              
-              if (details.pointerCount == 1) {
-                _isDrawing = true;
-                _hadMultiplePointers = false;
-                _handleInteraction(details.localFocalPoint, true, isPortrait, width, height);
-              } else {
-                _isDrawing = false;
-                _hadMultiplePointers = true;
-              }
-            },
-            onInteractionUpdate: (details) {
-              if (widget.readOnly) return;
-
-              if (details.pointerCount > 1) {
-                _hadMultiplePointers = true;
-                if (_isDrawing) {
-                  setState(() {
-                    _isDrawing = false;
-                    // Remove accidental path created when first finger landed
-                    if (_frontPaths.isNotEmpty && _frontPaths.last.length < 5) _frontPaths.removeLast();
-                    if (_backPaths.isNotEmpty && _backPaths.last.length < 5) _backPaths.removeLast();
-                  });
-                }
-                return;
-              }
-
-              // Only continue drawing if we ONLY had one finger the whole time
-              if (_isDrawing && details.pointerCount == 1 && !_hadMultiplePointers) {
-                _handleInteraction(details.localFocalPoint, false, isPortrait, width, height);
-              }
-            },
-            onInteractionEnd: (details) {
-              _isDrawing = false;
-              _hadMultiplePointers = false;
-            },
-            child: Stack(
-              children: [
-                Flex(
-                  direction: isPortrait ? Axis.vertical : Axis.horizontal,
+              return InteractiveViewer(
+                transformationController: _transformationController,
+                maxScale: 5.0,
+                minScale: 1.0,
+                // Nav mode: zoom/pan ON. Drawing mode: zoom/pan OFF.
+                panEnabled: !_isDrawingMode || widget.readOnly,
+                scaleEnabled: !_isDrawingMode || widget.readOnly,
+                onInteractionStart: (details) {
+                  if (widget.readOnly || !_isDrawingMode || details.pointerCount != 1) return;
+                  _handleInteraction(details.localFocalPoint, true, isPortrait, width, height);
+                },
+                onInteractionUpdate: (details) {
+                  if (widget.readOnly || !_isDrawingMode || details.pointerCount != 1) return;
+                  _handleInteraction(details.localFocalPoint, false, isPortrait, width, height);
+                },
+                child: Stack(
                   children: [
-                    Expanded(child: _buildSvgAsset('front')),
-                    Expanded(child: _buildSvgAsset('back')),
+                    Flex(
+                      direction: isPortrait ? Axis.vertical : Axis.horizontal,
+                      children: [
+                        Expanded(child: _buildSvgAsset('front')),
+                        Expanded(child: _buildSvgAsset('back')),
+                      ],
+                    ),
+                    CustomPaint(
+                      size: Size(width, height),
+                      painter: BodyMapPainter(
+                        frontPaths: _frontPaths,
+                        backPaths: _backPaths,
+                        color: widget.emotionColor,
+                        isPortrait: isPortrait,
+                      ),
+                    ),
                   ],
                 ),
-                CustomPaint(
-                  size: Size(width, height),
-                  painter: BodyMapPainter(
-                    frontPaths: _frontPaths,
-                    backPaths: _backPaths,
-                    color: widget.emotionColor,
-                    isPortrait: isPortrait,
+              );
+            },
+          ),
+          
+          // MODE TOGGLE
+          if (!widget.readOnly)
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ModeButton(
+                        icon: Icons.zoom_out_map,
+                        label: 'Move',
+                        isSelected: !_isDrawingMode,
+                        onTap: () => setState(() => _isDrawingMode = false),
+                      ),
+                      _ModeButton(
+                        icon: Icons.edit,
+                        label: 'Draw',
+                        isSelected: _isDrawingMode,
+                        color: widget.emotionColor,
+                        onTap: () => setState(() => _isDrawingMode = true),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          );
-        },
+        ],
       ),
     );
   }
@@ -191,14 +205,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
           final point = Offset(translatedPos.dx / width, translatedPos.dy / midY);
           if (isStart) {
             _frontPaths.add([point]);
-          } else if (_frontPaths.isNotEmpty && _isDrawing) {
+          } else if (_frontPaths.isNotEmpty) {
             _frontPaths.last.add(point);
           }
         } else {
           final point = Offset(translatedPos.dx / width, (translatedPos.dy - midY) / midY);
           if (isStart) {
             _backPaths.add([point]);
-          } else if (_backPaths.isNotEmpty && _isDrawing) {
+          } else if (_backPaths.isNotEmpty) {
             _backPaths.last.add(point);
           }
         }
@@ -208,14 +222,14 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
           final point = Offset(translatedPos.dx / midX, translatedPos.dy / height);
           if (isStart) {
             _frontPaths.add([point]);
-          } else if (_frontPaths.isNotEmpty && _isDrawing) {
+          } else if (_frontPaths.isNotEmpty) {
             _frontPaths.last.add(point);
           }
         } else {
           final point = Offset((translatedPos.dx - midX) / midX, translatedPos.dy / height);
           if (isStart) {
             _backPaths.add([point]);
-          } else if (_backPaths.isNotEmpty && _isDrawing) {
+          } else if (_backPaths.isNotEmpty) {
             _backPaths.last.add(point);
           }
         }
@@ -243,6 +257,56 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   }
 }
 
+class _ModeButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _ModeButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = color ?? Theme.of(context).primaryColor;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? Colors.white : Colors.grey,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class BodyMapPainter extends CustomPainter {
   final List<List<Offset>> frontPaths;
   final List<List<Offset>> backPaths;
@@ -260,7 +324,7 @@ class BodyMapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color.withOpacity(0.5)
-      ..strokeWidth = 8.0
+      ..strokeWidth = 8.0 
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
@@ -281,7 +345,7 @@ class BodyMapPainter extends CustomPainter {
         final midX = width / 2;
         screenPath.moveTo(path[0].dx * midX, path[0].dy * height);
         for (var i = 1; i < path.length; i++) {
-          screenPath.lineTo(path[i].dx * midX, path[i].dy * height);
+          screenPath.lineTo(path[i].dx * width, path[i].dy * height);
         }
       }
       canvas.drawPath(screenPath, paint);
