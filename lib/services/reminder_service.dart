@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -7,7 +8,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
-enum AlertType { quiet, vibrate, alarm }
+enum AlertType { quiet, alarm }
 
 class Reminder {
   final int id;
@@ -36,12 +37,22 @@ class Reminder {
   }
 
   factory Reminder.fromMap(Map<dynamic, dynamic> map) {
+    String alertTypeName = map['alertType'] as String? ?? 'quiet';
+    if (alertTypeName == 'vibrate') {
+      alertTypeName = 'quiet';
+    }
+    try {
+      AlertType.values.byName(alertTypeName);
+    } catch (_) {
+      alertTypeName = 'quiet';
+    }
+
     return Reminder(
       id: map['id'] as int,
       time: TimeOfDay(hour: map['hour'] as int, minute: map['minute'] as int),
-      alertType: AlertType.values.byName(map['alertType'] as String),
+      alertType: AlertType.values.byName(alertTypeName),
       message: map['message'] as String? ?? 'How are you feeling right now?',
-      isEnabled: map['isEnabled'] as bool,
+      isEnabled: map['isEnabled'] as bool? ?? true,
     );
   }
 }
@@ -52,17 +63,19 @@ class ReminderService {
 
   static Future<void> init() async {
     tz.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    try {
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (e) {
+      debugPrint("Timezone error: $e");
+    }
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _notifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // App will open automatically on tap due to platform configuration
-      },
+      onDidReceiveNotificationResponse: (details) {},
     );
   }
 
@@ -75,40 +88,32 @@ class ReminderService {
   }
 
   static Future<void> sendImmediateTest(Reminder reminder) async {
-    final androidDetails = _getAndroidDetails(reminder.alertType);
-    await _notifications.show(
-      999,
-      'Test: ${reminder.alertType.name.toUpperCase()}',
-      reminder.message,
-      NotificationDetails(android: androidDetails),
-    );
+    try {
+      final androidDetails = _getAndroidDetails(reminder.alertType);
+      await _notifications.show(
+        999,
+        'Test Notification',
+        reminder.message,
+        NotificationDetails(android: androidDetails),
+      );
+    } catch (e) {
+      debugPrint("Test failed: $e");
+    }
   }
 
   static Future<void> scheduleReminder(Reminder reminder) async {
     await _notifications.cancel(reminder.id);
-    
     if (!reminder.isEnabled) return;
 
-    final now = DateTime.now();
-    var scheduledDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      reminder.time.hour,
-      reminder.time.minute,
-    );
-
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
+    final tz.TZDateTime scheduledDate = _nextInstanceOfTime(reminder.time);
 
     final androidDetails = _getAndroidDetails(reminder.alertType);
 
     await _notifications.zonedSchedule(
       reminder.id,
-      'Emotion Tracker',
+      'Sentic',
       reminder.message,
-      tz.TZDateTime.from(scheduledDate, tz.local),
+      scheduledDate,
       NotificationDetails(android: androidDetails),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
@@ -116,47 +121,52 @@ class ReminderService {
     );
   }
 
+  static Future<void> cancelReminder(int id) async {
+    await _notifications.cancel(id);
+  }
+
+  static tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, time.hour, time.minute);
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
   static AndroidNotificationDetails _getAndroidDetails(AlertType type) {
+    const String channelId = 'sentic_reminders_final_alarm';
+    const String channelName = 'Sentic Reminders';
+
     switch (type) {
       case AlertType.quiet:
         return const AndroidNotificationDetails(
-          'reminders_quiet',
-          'Quiet Reminders',
-          channelDescription: 'Gentle nudges in the notification tray',
+          channelId, channelName,
           importance: Importance.low,
           priority: Priority.low,
-          showWhen: true,
-        );
-      case AlertType.vibrate:
-        return AndroidNotificationDetails(
-          'reminders_vibrate',
-          'Vibrate Reminders',
-          channelDescription: 'Notifications with haptic feedback',
-          importance: Importance.high,
-          priority: Priority.high,
-          enableVibration: true,
-          vibrationPattern: Int64List.fromList([0, 500, 200, 500]),
         );
       case AlertType.alarm:
-        return AndroidNotificationDetails(
-          'reminders_alarm',
-          'Alarm Reminders',
-          channelDescription: 'High-priority alarms that ring even on silent',
+        return const AndroidNotificationDetails(
+          channelId, channelName,
           importance: Importance.max,
           priority: Priority.max,
-          audioAttributesUsage: AudioAttributesUsage.alarm,
-          sound: const RawResourceAndroidNotificationSound('alarm_sound'),
           playSound: true,
-          fullScreenIntent: true,
-          enableVibration: true,
+          sound: RawResourceAndroidNotificationSound('alarm_sound'),
+          audioAttributesUsage: AudioAttributesUsage.alarm,
           category: AndroidNotificationCategory.alarm,
+          enableVibration: true,
+          fullScreenIntent: true,
         );
     }
   }
 
   static Future<void> previewAlarmSound() async {
-    await _audioPlayer.setVolume(1.0);
-    await _audioPlayer.play(AssetSource('audio/alarm_sound.mp3'));
+    try {
+      await _audioPlayer.setVolume(1.0);
+      await _audioPlayer.play(AssetSource('audio/alarm_sound.mp3'));
+    } catch (e) {
+      debugPrint("Preview failed: $e");
+    }
   }
 
   static Future<void> stopPreview() async {

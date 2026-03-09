@@ -26,12 +26,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _loadReminders() {
     _reminders = SettingsService.getReminders();
-    // Clean up old controllers
     for (var c in _controllers) {
       c.dispose();
     }
     _controllers.clear();
-    
     for (var reminder in _reminders) {
       _controllers.add(TextEditingController(text: reminder.message));
     }
@@ -46,23 +44,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _saveReminders() async {
-    final updatedReminders = <Reminder>[];
-    for (int i = 0; i < _reminders.length; i++) {
-      updatedReminders.add(Reminder(
-        id: _reminders[i].id,
-        time: _reminders[i].time,
-        alertType: _reminders[i].alertType,
-        message: _controllers[i].text,
-        isEnabled: _reminders[i].isEnabled,
-      ));
-    }
-
-    await SettingsService.saveReminders(updatedReminders);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reminders saved and scheduled')),
-      );
+    try {
+      final updatedReminders = <Reminder>[];
+      for (int i = 0; i < _reminders.length; i++) {
+        updatedReminders.add(Reminder(
+          id: _reminders[i].id,
+          time: _reminders[i].time,
+          alertType: _reminders[i].alertType,
+          message: _controllers[i].text,
+          isEnabled: _reminders[i].isEnabled,
+        ));
+      }
+      await SettingsService.saveReminders(updatedReminders);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reminders saved and scheduled.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving reminders: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -412,11 +416,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () {
+                          onPressed: () async {
+                            final reminderId = reminder.id;
                             setState(() {
                               _reminders.removeAt(index);
                               _controllers.removeAt(index);
                             });
+                            
+                            // Immediate persistence and cancellation
+                            await SettingsService.saveReminders(List<Reminder>.from(_reminders));
+                            await ReminderService.cancelReminder(reminderId);
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Reminder deleted')),
+                              );
+                            }
                           },
                         ),
                       ],
@@ -443,22 +458,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 id: reminder.id,
                                 time: reminder.time,
                                 alertType: AlertType.quiet,
-                                message: reminder.message,
-                                isEnabled: reminder.isEnabled,
-                              );
-                            });
-                          },
-                        ),
-                        _AlertOption(
-                          label: 'Vibrate',
-                          icon: Icons.vibration,
-                          isSelected: reminder.alertType == AlertType.vibrate,
-                          onTap: () {
-                            setState(() {
-                              _reminders[index] = Reminder(
-                                id: reminder.id,
-                                time: reminder.time,
-                                alertType: AlertType.vibrate,
                                 message: reminder.message,
                                 isEnabled: reminder.isEnabled,
                               );
@@ -528,7 +527,7 @@ class _AlertOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material( // Added Material to ensure touch effects
+    return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
