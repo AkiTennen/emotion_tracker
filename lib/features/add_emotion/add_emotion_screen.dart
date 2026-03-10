@@ -66,23 +66,17 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   }
 
   void _checkUnlocks() {
-    if (SettingsService.shouldSkipUnlocking()) {
-      setState(() {
-        _isTier2Unlocked = true;
-        _isTier3Unlocked = true;
-        _isIntensityUnlocked = true;
-        _isBodyMapUnlocked = true;
-        _isTriggerUnlocked = true;
-      });
-      return;
-    }
-
     setState(() {
-      _isTier2Unlocked = DatabaseService.getTier1Count() >= 7;
-      _isTier3Unlocked = DatabaseService.getTier2Count() >= 7;
-      _isIntensityUnlocked = DatabaseService.getTier3Count() >= 7;
-      _isBodyMapUnlocked = DatabaseService.getIntensityCount() >= 7;
-      _isTriggerUnlocked = DatabaseService.getBodyMapCount() >= 3;
+      // VISIBILITY LOGIC:
+      // If the setting is ON, it's visible. 
+      // If it's OFF, it's hidden (even if earned via progression counts).
+      final emotionsSetting = SettingsService.isEmotionsUnlocked();
+      _isTier2Unlocked = emotionsSetting;
+      _isTier3Unlocked = emotionsSetting;
+      _isIntensityUnlocked = emotionsSetting;
+      
+      _isBodyMapUnlocked = SettingsService.isBodyMapUnlocked();
+      _isTriggerUnlocked = SettingsService.isTriggerPromptsUnlocked();
     });
   }
 
@@ -259,7 +253,23 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       await DatabaseService.saveEntry(entry);
     }
     
+    // Check if new unlocks should happen automatically
+    _updateProgressionThresholds();
+
     if (mounted) Navigator.pop(context);
+  }
+
+  void _updateProgressionThresholds() async {
+    // This maintains the "earning" logic in the background
+    if (!SettingsService.isEmotionsUnlocked() && DatabaseService.getTier1Count() >= 7) {
+      await SettingsService.setEmotionsUnlocked(true);
+    }
+    if (!SettingsService.isBodyMapUnlocked() && DatabaseService.getIntensityCount() >= 7) {
+      await SettingsService.setBodyMapUnlocked(true);
+    }
+    if (!SettingsService.isTriggerPromptsUnlocked() && DatabaseService.getBodyMapCount() >= 3) {
+      await SettingsService.setTriggerPromptsUnlocked(true);
+    }
   }
 
   void _openBodyMap() async {
@@ -348,12 +358,10 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
             ),
             
             if (_selectedTier1 != null) ...[
-              const Divider(height: 32),
-              Text('Step 2: Secondary Emotion', style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: _isTier2Unlocked ? null : Colors.grey,
-              )),
-              const SizedBox(height: 8),
-              if (_isTier2Unlocked)
+              if (_isTier2Unlocked) ...[
+                const Divider(height: 32),
+                Text('Step 2: Secondary Emotion', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: [
@@ -391,25 +399,33 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                       onPressed: () => _showCustomDialog(2),
                     ),
                   ],
-                )
-              else
-                const Text(
-                  'More ways to describe this will appear as you continue to reflect.',
-                  style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                 ),
+              ],
 
-              if (_isTier2Unlocked) ...[
+              if (_isTier3Unlocked) ...[
                 const Divider(height: 32),
-                Text('Step 3: Tertiary Emotion', style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: _isTier3Unlocked ? null : Colors.grey,
-                )),
+                Text('Step 3: Tertiary Emotion', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                if (_isTier3Unlocked)
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ...EmotionData.getAllTier3ForCategory(_selectedTier1!).map((e) {
-                        return ChoiceChip(
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ...EmotionData.getAllTier3ForCategory(_selectedTier1!).map((e) {
+                      return ChoiceChip(
+                        label: Text(e),
+                        selected: _selectedTier3 == e,
+                        selectedColor: color?.withOpacity(0.4),
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedTier3 = selected ? e : null;
+                          });
+                        },
+                      );
+                    }),
+                    ...customT3.map((e) {
+                      return GestureDetector(
+                        onLongPress: () => _confirmDeleteCustom(e, 3),
+                        child: ChoiceChip(
+                          avatar: const Icon(Icons.face_outlined, size: 16),
                           label: Text(e),
                           selected: _selectedTier3 == e,
                           selectedColor: color?.withOpacity(0.4),
@@ -418,161 +434,98 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                               _selectedTier3 = selected ? e : null;
                             });
                           },
-                        );
-                      }),
-                      ...customT3.map((e) {
-                        return GestureDetector(
-                          onLongPress: () => _confirmDeleteCustom(e, 3),
-                          child: ChoiceChip(
-                            avatar: const Icon(Icons.face_outlined, size: 16),
-                            label: Text(e),
-                            selected: _selectedTier3 == e,
-                            selectedColor: color?.withOpacity(0.4),
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedTier3 = selected ? e : null;
-                              });
-                            },
-                          ),
-                        );
-                      }),
-                      ActionChip(
-                        avatar: const Icon(Icons.add, size: 16),
-                        label: const Text('Custom'),
-                        onPressed: () => _showCustomDialog(3),
-                      ),
-                    ],
-                  )
-                else
-                  const Text(
-                    'Even deeper layers of detail will become available over time.',
-                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                  ),
-              ],
-
-              if (_isTier3Unlocked) ...[
-                const Divider(height: 32),
-                Text(
-                  _isIntensityUnlocked ? 'Intensity: ${_intensity.toInt()}' : 'Intensity',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: _isIntensityUnlocked ? null : Colors.grey,
-                  ),
-                ),
-                if (_isIntensityUnlocked)
-                  Slider(
-                    value: _intensity,
-                    min: 0,
-                    max: 3,
-                    divisions: 3,
-                    label: _intensity.toInt().toString(),
-                    activeColor: color,
-                    onChanged: (value) => setState(() => _intensity = value),
-                  )
-                else
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'Soon, you will be able to note the strength of these feelings.',
-                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                        ),
+                      );
+                    }),
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 16),
+                      label: const Text('Custom'),
+                      onPressed: () => _showCustomDialog(3),
                     ),
-                  ),
+                  ],
+                ),
               ],
 
               if (_isIntensityUnlocked) ...[
                 const Divider(height: 32),
-                Text(
-                  'Body Map',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: _isBodyMapUnlocked ? null : Colors.grey,
-                  ),
+                Text('Intensity: ${_intensity.toInt()}', style: Theme.of(context).textTheme.titleMedium),
+                Slider(
+                  value: _intensity,
+                  min: 0,
+                  max: 3,
+                  divisions: 3,
+                  label: _intensity.toInt().toString(),
+                  activeColor: color,
+                  onChanged: (value) => setState(() => _intensity = value),
                 ),
-                const SizedBox(height: 8),
-                if (_isBodyMapUnlocked)
-                  InkWell(
-                    onTap: _openBodyMap,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.accessibility_new, color: color ?? Colors.grey),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Where do you feel this?'),
-                                if (_bodyMapData != null)
-                                  const Text(
-                                    'Area marked',
-                                    style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (_bodyMapData != null)
-                            // A tiny visual preview of the drawing
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.grey[300]!),
-                              ),
-                              child: CustomPaint(
-                                painter: BodyMapSmallPreviewPainter(
-                                  data: _bodyMapData!,
-                                  color: color ?? Colors.grey,
-                                ),
-                              ),
-                            ),
-                          const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'In time, you\'ll be able to mark where in your body you feel this.',
-                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                    ),
-                  ),
               ],
 
               if (_isBodyMapUnlocked) ...[
                 const Divider(height: 32),
-                Text(
-                  'What influenced this?',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: _isTriggerUnlocked ? null : Colors.grey,
+                Text('Body Map', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: _openBodyMap,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.accessibility_new, color: color ?? Colors.grey),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Where do you feel this?'),
+                              if (_bodyMapData != null)
+                                const Text(
+                                  'Area marked',
+                                  style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (_bodyMapData != null)
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: CustomPaint(
+                              painter: BodyMapSmallPreviewPainter(
+                                data: _bodyMapData!,
+                                color: color ?? Colors.grey,
+                              ),
+                            ),
+                          ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
                   ),
                 ),
+              ],
+
+              if (_isTriggerUnlocked) ...[
+                const Divider(height: 32),
+                Text('What influenced this?', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
-                if (_isTriggerUnlocked)
-                  TextField(
-                    controller: _triggerController,
-                    decoration: const InputDecoration(
-                      hintText: 'Was it a person, place, or event?',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) => _triggerText = value,
-                  )
-                else
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'You\'ll soon be able to note down external triggers or influences.',
-                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                    ),
+                TextField(
+                  controller: _triggerController,
+                  decoration: const InputDecoration(
+                    hintText: 'Was it a person, place, or event?',
+                    border: OutlineInputBorder(),
                   ),
+                  onChanged: (value) => _triggerText = value,
+                ),
               ],
             ],
 

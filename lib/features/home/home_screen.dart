@@ -416,6 +416,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (item is EmotionEntry) {
                     final latest = DatabaseService.getLatestState(item);
                     final color = EmotionData.getColor(latest['tier1']);
+                    final intensity = latest['intensity'] as int;
+                    final double opacity = 0.25 + (intensity * 0.25);
                     
                     return Dismissible(
                       key: Key(item.id),
@@ -433,10 +435,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ListTile(
                         onTap: () => _showRevisionDialog(item),
                         leading: CircleAvatar(
-                          backgroundColor: color,
+                          backgroundColor: color.withOpacity(opacity),
                           child: Text(
-                            latest['intensity'].toString(),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            intensity.toString(),
+                            style: TextStyle(
+                              color: opacity > 0.6 ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         title: Row(

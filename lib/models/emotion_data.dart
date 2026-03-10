@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/settings_service.dart';
 
 class EmotionMatch {
   final String tier1;
@@ -88,6 +89,13 @@ class EmotionData {
   static List<String> getTier3Specific(String t1, String t2) => wheel[t1]?[t2] ?? [];
 
   static Color getColor(String tier1Emotion) {
+    // Check for custom color first
+    final customColors = SettingsService.getCustomColors();
+    if (customColors.containsKey(tier1Emotion)) {
+      return Color(customColors[tier1Emotion]!);
+    }
+
+    // Default Fallbacks
     switch (tier1Emotion) {
       case 'Bad': return Colors.brown.shade300;
       case 'Fearful': return Colors.deepPurple.shade300;

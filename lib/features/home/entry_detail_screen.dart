@@ -74,6 +74,7 @@ class EntryDetailScreen extends StatelessWidget {
     IconData? icon,
   }) {
     final color = EmotionData.getColor(tier1);
+    final double opacity = 0.25 + (intensity * 0.25);
     
     return IntrinsicHeight(
       child: Row(
@@ -85,14 +86,14 @@ class EntryDetailScreen extends StatelessWidget {
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: color,
+                  color: color.withOpacity(opacity),
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4),
                   ],
                 ),
-                child: icon != null ? Icon(icon, size: 10, color: Colors.white) : null,
+                child: icon != null ? Icon(icon, size: 10, color: opacity > 0.6 ? Colors.white : Colors.black87) : null,
               ),
               Expanded(
                 child: Container(

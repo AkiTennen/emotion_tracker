@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../../services/settings_service.dart';
 import '../../services/reminder_service.dart';
 import '../../services/backup_service.dart';
+import '../../models/emotion_data.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,7 +13,8 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   List<Reminder> _reminders = [];
   final List<TextEditingController> _controllers = [];
   late BodyType _currentBodyType;
@@ -19,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 4, vsync: this);
     _loadReminders();
     _currentBodyType = SettingsService.getBodyType();
     ReminderService.requestPermissions();
@@ -37,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     for (var controller in _controllers) {
       controller.dispose();
     }
@@ -72,7 +77,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _addReminder() {
     if (_reminders.length >= 3) return;
-    
     setState(() {
       final newReminder = Reminder(
         id: DateTime.now().millisecondsSinceEpoch % 100000,
@@ -102,45 +106,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       });
     }
-  }
-
-  void _showUnlockAllDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Unlock everything?'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('This will immediately unlock:'),
-            SizedBox(height: 8),
-            Text('• Secondary & Tertiary emotions'),
-            Text('• Intensity slider'),
-            Text('• Body Map feature'),
-            Text('• Trigger Prompts'),
-            SizedBox(height: 16),
-            Text('You can turn this off later to return to your natural progression.'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await SettingsService.setSkipUnlocking(true);
-              if (mounted) {
-                setState(() {});
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Unlock All'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showBodyTypePicker() {
@@ -204,8 +169,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text('Sample Preview', style: TextStyle(fontSize: 10, color: Colors.grey)),
                 ],
               ),
               actions: [
@@ -226,286 +189,357 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _handleBackup() async {
-    try {
-      await BackupService.exportBackup();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup created successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e')),
-        );
-      }
+  void _pickColor(String emotion) {
+    final currentColors = SettingsService.getCustomColors();
+    Color currentColor = EmotionData.getColor(emotion);
+    if (currentColors.containsKey(emotion)) {
+      currentColor = Color(currentColors[emotion]!);
     }
-  }
 
-  void _handleRestore() async {
-    final bool? confirm = await showDialog<bool>(
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Restore data?'),
-        content: const Text(
-          'This will replace all your current entries and settings with the data from the backup file. This cannot be undone.',
+        title: Text('Pick color for $emotion'),
+        content: SingleChildScrollView(
+          child: ColorPicker(
+            pickerColor: currentColor,
+            onColorChanged: (color) => currentColor = color,
+            pickerAreaHeightPercent: 0.8,
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Restore', style: TextStyle(color: Colors.red)),
+            onPressed: () async {
+              await SettingsService.setCustomColor(emotion, currentColor.value);
+              setState(() {});
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('Select'),
           ),
         ],
       ),
     );
+  }
 
-    if (confirm != true) return;
-
-    try {
-      final success = await BackupService.importBackup();
-      if (mounted && success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data restored successfully')),
-        );
-        _loadReminders();
-        setState(() {
-          _currentBodyType = SettingsService.getBodyType();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e')),
-        );
-      }
-    }
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.1,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isAllUnlocked = SettingsService.shouldSkipUnlocking();
+    final customColors = SettingsService.getCustomColors();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(bottom: 100),
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          SwitchListTile(
-            title: const Text('Enable all features'),
-            subtitle: const Text(
-              'By default, the app introduces new layers of detail gradually. Turn this on to access all features immediately.',
-            ),
-            isThreeLine: true,
-            value: SettingsService.shouldSkipUnlocking(),
-            onChanged: (bool value) async {
-              if (value) {
-                _showUnlockAllDialog();
-              } else {
-                await SettingsService.setSkipUnlocking(false);
-                setState(() {});
-              }
-            },
-          ),
-          const Divider(),
-          SwitchListTile(
-            title: const Text('Journaling'),
-            subtitle: const Text(
-              'Enable a separate space for long-form reflection on your day.',
-            ),
-            value: SettingsService.isJournalEnabled(),
-            onChanged: (bool value) async {
-              await SettingsService.setJournalEnabled(value);
-              setState(() {});
-            },
-          ),
-          const Divider(),
-          ListTile(
-            title: const Text('Body Map Type'),
-            subtitle: Text('Current: ${_currentBodyType.name[0].toUpperCase() + _currentBodyType.name.substring(1)}'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _showBodyTypePicker,
-          ),
-          const Divider(),
-          
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text('Data Management', style: Theme.of(context).textTheme.titleLarge),
-          ),
-          ListTile(
-            leading: const Icon(Icons.upload_file),
-            title: const Text('Backup Data'),
-            subtitle: const Text('Export all your data to a JSON file for safekeeping.'),
-            onTap: _handleBackup,
-          ),
-          ListTile(
-            leading: const Icon(Icons.download_for_offline),
-            title: const Text('Restore Data'),
-            subtitle: const Text('Restore your entries and settings from a backup file.'),
-            onTap: _handleRestore,
-          ),
-          const Divider(),
-
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Daily Reminders', style: Theme.of(context).textTheme.titleLarge),
-                if (_reminders.length < 3)
-                  ElevatedButton.icon(
-                    onPressed: _addReminder,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add'),
-                  ),
-              ],
-            ),
-          ),
-          if (_reminders.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text('No reminders set. Use them to build a mindful habit.', style: TextStyle(color: Colors.grey)),
-            ),
-          ..._reminders.asMap().entries.map((entry) {
-            final index = entry.key;
-            final reminder = entry.value;
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () => _pickTime(index),
-                          child: Text(
-                            reminder.time.format(context),
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: () {
-                            final testReminder = Reminder(
-                              id: 999,
-                              time: reminder.time,
-                              alertType: reminder.alertType,
-                              message: _controllers[index].text,
-                              isEnabled: true,
-                            );
-                            ReminderService.sendImmediateTest(testReminder);
-                          },
-                          icon: const Icon(Icons.send, size: 16),
-                          label: const Text('Test'),
-                        ),
-                        Switch(
-                          value: reminder.isEnabled,
-                          onChanged: (val) {
-                            setState(() {
-                              _reminders[index] = Reminder(
-                                id: reminder.id,
-                                time: reminder.time,
-                                alertType: reminder.alertType,
-                                message: reminder.message,
-                                isEnabled: val,
-                              );
-                            });
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () async {
-                            final reminderId = reminder.id;
-                            setState(() {
-                              _reminders.removeAt(index);
-                              _controllers.removeAt(index);
-                            });
-                            
-                            // Immediate persistence and cancellation
-                            await SettingsService.saveReminders(List<Reminder>.from(_reminders));
-                            await ReminderService.cancelReminder(reminderId);
-                            
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Reminder deleted')),
-                              );
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _controllers[index],
-                      decoration: const InputDecoration(
-                        labelText: 'What should the app ask you?',
-                        border: OutlineInputBorder(),
+          // TAB 1: General & Progression
+          ListView(
+            children: [
+              _buildSectionHeader('FEATURES'),
+              SwitchListTile(
+                title: const Text('Journaling'),
+                subtitle: const Text('Enable separate space for long-form reflection.'),
+                value: SettingsService.isJournalEnabled(),
+                onChanged: (bool value) async {
+                  await SettingsService.setJournalEnabled(value);
+                  setState(() {});
+                },
+              ),
+              ListTile(
+                title: const Text('Body Map Type'),
+                subtitle: Text('Current: ${_currentBodyType.name[0].toUpperCase() + _currentBodyType.name.substring(1)}'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _showBodyTypePicker,
+              ),
+              const Divider(),
+              _buildSectionHeader('PROGRESSION & VISIBILITY'),
+              SwitchListTile(
+                title: const Text('Unlock Everything'),
+                subtitle: const Text('Bypass all gradual feature unlocks.'),
+                value: isAllUnlocked,
+                onChanged: (bool value) async {
+                  await SettingsService.setSkipUnlocking(value);
+                  setState(() {});
+                },
+              ),
+              Opacity(
+                opacity: isAllUnlocked ? 0.5 : 1.0,
+                child: AbsorbPointer(
+                  absorbing: isAllUnlocked,
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text('Emotion Tiers & Intensity'),
+                        value: SettingsService.isEmotionsUnlocked(),
+                        onChanged: (val) async {
+                          await SettingsService.setEmotionsUnlocked(val);
+                          setState(() {});
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _AlertOption(
-                          label: 'Quiet',
-                          icon: Icons.notifications_none,
-                          isSelected: reminder.alertType == AlertType.quiet,
-                          onTap: () {
-                            setState(() {
-                              _reminders[index] = Reminder(
-                                id: reminder.id,
-                                time: reminder.time,
-                                alertType: AlertType.quiet,
-                                message: reminder.message,
-                                isEnabled: reminder.isEnabled,
-                              );
-                            });
-                          },
-                        ),
-                        _AlertOption(
-                          label: 'Alarm',
-                          icon: Icons.alarm,
-                          isSelected: reminder.alertType == AlertType.alarm,
-                          onTap: () {
-                            setState(() {
-                              _reminders[index] = Reminder(
-                                id: reminder.id,
-                                time: reminder.time,
-                                alertType: AlertType.alarm,
-                                message: reminder.message,
-                                isEnabled: reminder.isEnabled,
-                              );
-                            });
-                          },
-                        ),
-                        if (reminder.alertType == AlertType.alarm)
-                          IconButton(
-                            icon: const Icon(Icons.play_circle_outline),
-                            onPressed: () => ReminderService.previewAlarmSound(),
-                          ),
-                      ],
-                    ),
+                      SwitchListTile(
+                        title: const Text('Body Map Feature'),
+                        value: SettingsService.isBodyMapUnlocked(),
+                        onChanged: (val) async {
+                          await SettingsService.setBodyMapUnlocked(val);
+                          setState(() {});
+                        },
+                      ),
+                      SwitchListTile(
+                        title: const Text('Trigger Prompts'),
+                        value: SettingsService.isTriggerPromptsUnlocked(),
+                        onChanged: (val) async {
+                          await SettingsService.setTriggerPromptsUnlocked(val);
+                          setState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // TAB 2: Reminders
+          ListView(
+            padding: const EdgeInsets.only(bottom: 20),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Daily Reminders', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    if (_reminders.length < 3)
+                      FilledButton.icon(
+                        onPressed: _addReminder,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add'),
+                      ),
                   ],
                 ),
               ),
-            );
-          }),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Privacy Note: All your emotional data is stored locally on this device. No data ever leaves your phone.',
-              style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-            ),
+              if (_reminders.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Center(child: Text('No reminders set.', style: TextStyle(color: Colors.grey))),
+                ),
+              ..._reminders.asMap().entries.map((entry) {
+                final index = entry.key;
+                final reminder = entry.value;
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            ActionChip(
+                              avatar: const Icon(Icons.access_time, size: 16),
+                              label: Text(reminder.time.format(context)),
+                              onPressed: () => _pickTime(index),
+                            ),
+                            const Spacer(),
+                            Switch(
+                              value: reminder.isEnabled,
+                              onChanged: (val) {
+                                setState(() {
+                                  _reminders[index] = Reminder(
+                                    id: reminder.id,
+                                    time: reminder.time,
+                                    alertType: reminder.alertType,
+                                    message: reminder.message,
+                                    isEnabled: val,
+                                  );
+                                });
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () async {
+                                final reminderId = reminder.id;
+                                setState(() {
+                                  _reminders.removeAt(index);
+                                  _controllers.removeAt(index);
+                                });
+                                await SettingsService.saveReminders(List<Reminder>.from(_reminders));
+                                await ReminderService.cancelReminder(reminderId);
+                              },
+                            ),
+                          ],
+                        ),
+                        TextField(
+                          controller: _controllers[index],
+                          decoration: const InputDecoration(labelText: 'Prompt Message', isDense: true),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _AlertOption(
+                                label: 'Quiet',
+                                icon: Icons.notifications_none,
+                                isSelected: reminder.alertType == AlertType.quiet,
+                                onTap: () => setState(() => _reminders[index] = Reminder(id: reminder.id, time: reminder.time, alertType: AlertType.quiet, message: reminder.message, isEnabled: reminder.isEnabled)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _AlertOption(
+                                label: 'Alarm',
+                                icon: Icons.alarm,
+                                isSelected: reminder.alertType == AlertType.alarm,
+                                onTap: () => setState(() => _reminders[index] = Reminder(id: reminder.id, time: reminder.time, alertType: AlertType.alarm, message: reminder.message, isEnabled: reminder.isEnabled)),
+                              ),
+                            ),
+                            if (reminder.alertType == AlertType.alarm)
+                              IconButton(
+                                icon: const Icon(Icons.play_circle_outline, size: 20),
+                                onPressed: () => ReminderService.previewAlarmSound(),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.send_outlined, size: 20),
+                              onPressed: () {
+                                final test = Reminder(id: 999, time: reminder.time, alertType: reminder.alertType, message: _controllers[index].text, isEnabled: true);
+                                ReminderService.sendImmediateTest(test);
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              if (_reminders.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: FilledButton(
+                    onPressed: _saveReminders,
+                    child: const Text('Apply Reminder Changes'),
+                  ),
+                ),
+            ],
+          ),
+
+          // TAB 3: Colors
+          ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Personalize Emotions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await SettingsService.resetCustomColors();
+                      setState(() {});
+                    },
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Reset to Default'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text('Tap an emotion to change its primary color throughout the app.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const SizedBox(height: 24),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 4,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                children: EmotionData.tier1.map((emotion) {
+                  final color = customColors.containsKey(emotion) ? Color(customColors[emotion]!) : EmotionData.getColor(emotion);
+                  return InkWell(
+                    onTap: () => _pickColor(emotion),
+                    child: Column(
+                      children: [
+                        CircleAvatar(backgroundColor: color, radius: 24),
+                        const SizedBox(height: 4),
+                        Text(emotion, style: const TextStyle(fontSize: 11), overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+
+          // TAB 4: Data & Advanced
+          ListView(
+            children: [
+              _buildSectionHeader('DATA MANAGEMENT'),
+              ListTile(
+                leading: const Icon(Icons.upload_file),
+                title: const Text('Backup Data'),
+                subtitle: const Text('Export all entries and settings.'),
+                onTap: BackupService.exportBackup,
+              ),
+              ListTile(
+                leading: const Icon(Icons.download_for_offline),
+                title: const Text('Restore Data'),
+                subtitle: const Text('Import data from a backup file.'),
+                onTap: () async {
+                  final success = await BackupService.importBackup();
+                  if (success) setState(() => _currentBodyType = SettingsService.getBodyType());
+                },
+              ),
+              const Divider(),
+              _buildSectionHeader('ADVANCED'),
+              ListTile(
+                leading: const Icon(Icons.restart_alt),
+                title: const Text('Reset Tutorials'),
+                subtitle: const Text('Show the body map guide again.'),
+                onTap: () async {
+                  await SettingsService.setBodyMapIntroShown(false);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tutorials reset.')));
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'Privacy Note: Your emotional data is yours. It is stored locally and never leaves your device unless you export a backup.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _saveReminders,
-        label: const Text('Save Reminders'),
-        icon: const Icon(Icons.save),
+      bottomNavigationBar: Material(
+        color: Theme.of(context).colorScheme.surface,
+        elevation: 8,
+        child: TabBar(
+          controller: _tabController,
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Colors.grey,
+          indicatorSize: TabBarIndicatorSize.label,
+          tabs: const [
+            Tab(text: 'General', icon: Icon(Icons.settings_outlined)),
+            Tab(text: 'Reminders', icon: Icon(Icons.notifications_outlined)),
+            Tab(text: 'Colors', icon: Icon(Icons.palette_outlined)),
+            Tab(text: 'Data', icon: Icon(Icons.storage_outlined)),
+          ],
+        ),
       ),
     );
   }
@@ -517,45 +551,25 @@ class _AlertOption extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _AlertOption({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
+  const _AlertOption({required this.label, required this.icon, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.transparent,
-            border: Border.all(
-              color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade300,
-              width: 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: isSelected ? Theme.of(context).primaryColor : Colors.grey),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-                ),
-              ),
-            ],
-          ),
+    final color = isSelected ? Theme.of(context).primaryColor : Colors.grey;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : Colors.transparent,
+          border: Border.all(color: isSelected ? color : Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: color),
+            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+          ],
         ),
       ),
     );
