@@ -25,12 +25,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDay;
   DateTime _focusedDay = DateTime.now();
+  CalendarFormat _calendarFormat = CalendarFormat.week;
   List<EmotionEntry> _allEntries = [];
   List<JournalEntry> _allJournals = [];
 
   @override
   void initState() {
     super.initState();
+    _selectedDay = DateTime.now();
     _refreshData();
   }
 
@@ -47,6 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<JournalEntry> _getJournalsForDay(DateTime day) {
     return _allJournals.where((journal) => isSameDay(journal.timestamp, day)).toList();
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 17) return 'Good Afternoon 🌤️';
+    return 'Good Evening 🌙';
   }
 
   void _showRevisionDialog(EmotionEntry entry) {
@@ -288,6 +297,42 @@ class _HomeScreenState extends State<HomeScreen> {
     _refreshData();
   }
 
+  Widget _buildQuickActionCard(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDayCell(DateTime day, {bool isSelected = false, bool isToday = false, bool isOutside = false}) {
     final dayEntries = _getEntriesForDay(day);
     dayEntries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -308,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           if (dayEntries.isNotEmpty)
             CustomPaint(
-              size: const Size(42, 42),
+              size: const Size(36, 36),
               painter: EmotionPiePainter(
                 segments: dayEntries.map((e) {
                   final latest = DatabaseService.getLatestState(e);
@@ -362,12 +407,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<dynamic> combinedItems = [...selectedDayEntries, ...selectedDayJournals];
     combinedItems.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
+    final bool isTodaySelected = _selectedDay != null && isSameDay(_selectedDay, DateTime.now());
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Emotions'),
+        title: const Text('Emotion Tracker'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () async {
               await Navigator.push(
                 context,
@@ -379,12 +426,106 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // "Right Now" Section
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getGreeting(),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isTodaySelected 
+                    ? "How are you feeling right now?" 
+                    : "Reviewing ${DateFormat('MMMM d').format(_selectedDay!)}",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildQuickActionCard(
+                        context,
+                        icon: Icons.add_reaction_outlined,
+                        label: "Log Emotion",
+                        color: Colors.indigo,
+                        onTap: () => _openAddEmotionScreen(),
+                      ),
+                    ),
+                    if (SettingsService.isJournalEnabled()) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildQuickActionCard(
+                          context,
+                          icon: Icons.edit_note_outlined,
+                          label: "Write Journal",
+                          color: Colors.blueGrey,
+                          onTap: () => _openJournalEditor(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Timeline Header (Month Toggle)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Calendar",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _calendarFormat = _calendarFormat == CalendarFormat.week
+                          ? CalendarFormat.month
+                          : CalendarFormat.week;
+                    });
+                  },
+                  icon: Icon(
+                    _calendarFormat == CalendarFormat.week
+                        ? Icons.calendar_month_outlined
+                        : Icons.keyboard_arrow_up,
+                    size: 16,
+                  ),
+                  label: Text(
+                    _calendarFormat == CalendarFormat.week ? "Show Month" : "Show Week",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           TableCalendar(
             firstDay: DateTime.utc(DateTime.now().year - 2, 1, 1),
             lastDay: DateTime.now(),
             focusedDay: _focusedDay,
-            calendarFormat: CalendarFormat.month,
+            calendarFormat: _calendarFormat,
+            onFormatChanged: (format) {
+              setState(() {
+                _calendarFormat = format;
+              });
+            },
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
@@ -392,9 +533,13 @@ class _HomeScreenState extends State<HomeScreen> {
               });
             },
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            headerStyle: const HeaderStyle(
+            headerStyle: HeaderStyle(
               titleCentered: true,
               formatButtonVisible: false,
+              headerPadding: const EdgeInsets.symmetric(vertical: 4.0),
+              titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              leftChevronIcon: Icon(Icons.chevron_left, color: Colors.grey[400], size: 20),
+              rightChevronIcon: Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
             ),
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, focusedDay) => _buildDayCell(day),
@@ -402,13 +547,44 @@ class _HomeScreenState extends State<HomeScreen> {
               selectedBuilder: (context, day, focusedDay) => _buildDayCell(day, isSelected: true),
               outsideBuilder: (context, day, focusedDay) => _buildDayCell(day, isOutside: true),
             ),
+            daysOfWeekHeight: 20,
+            rowHeight: 48,
           ),
-          const Divider(),
+          
+          const SizedBox(height: 24),
+          
+          // Timeline Detail Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Text(
+              isTodaySelected ? "Today so far" : "Your journey on ${DateFormat('MMM d').format(_selectedDay!)}",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
           if (_selectedDay != null)
             Expanded(
               child: combinedItems.isEmpty
-                  ? const Center(child: Text('No entries for this day.'))
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.wb_sunny_outlined, size: 48, color: Colors.grey[200]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No entries yet.',
+                            style: TextStyle(color: Colors.grey[400], fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
                   : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
                 itemCount: combinedItems.length,
                 itemBuilder: (context, index) {
                   final item = combinedItems[index];
@@ -419,98 +595,136 @@ class _HomeScreenState extends State<HomeScreen> {
                     final intensity = latest['intensity'] as int;
                     final double opacity = 0.25 + (intensity * 0.25);
                     
-                    return Dismissible(
-                      key: Key(item.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20.0),
-                        color: Colors.red,
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (direction) async {
-                        await DatabaseService.deleteEntry(item.id);
-                        _refreshData();
-                      },
-                      child: ListTile(
-                        onTap: () => _showRevisionDialog(item),
-                        leading: CircleAvatar(
-                          backgroundColor: color.withOpacity(opacity),
-                          child: Text(
-                            intensity.toString(),
-                            style: TextStyle(
-                              color: opacity > 0.6 ? Colors.white : Colors.black87,
-                              fontWeight: FontWeight.bold,
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Dismissible(
+                        key: Key(item.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (direction) async {
+                          await DatabaseService.deleteEntry(item.id);
+                          _refreshData();
+                        },
+                        child: Card(
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                          ),
+                          child: ListTile(
+                            onTap: () => _showRevisionDialog(item),
+                            leading: CircleAvatar(
+                              backgroundColor: color.withOpacity(opacity),
+                              child: Text(
+                                intensity.toString(),
+                                style: TextStyle(
+                                  color: opacity > 0.6 ? Colors.white : Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  latest['tier1'],
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                if (latest['hasRevisions']) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                                if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.bolt, size: 14, color: Colors.orange),
+                                ],
+                              ],
+                            ),
+                            subtitle: Text(
+                              '${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            trailing: Text(
+                              DateFormat('HH:mm').format(item.timestamp),
+                              style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ),
-                        ),
-                        title: Row(
-                          children: [
-                            Text(latest['tier1']),
-                            if (latest['hasRevisions']) ...[
-                              const SizedBox(width: 8),
-                              Icon(
-                                latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                            ],
-                            if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              const Icon(Icons.bolt, size: 14, color: Colors.orange),
-                            ],
-                          ],
-                        ),
-                        subtitle: Text('${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}'),
-                        trailing: Text(
-                          DateFormat('HH:mm').format(item.timestamp),
-                          style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
                     );
                   } else if (item is JournalEntry) {
                     final latest = DatabaseService.getLatestJournalState(item);
-                    return Dismissible(
-                      key: Key(item.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20.0),
-                        color: Colors.red,
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (direction) async {
-                        await DatabaseService.deleteJournal(item.id);
-                        _refreshData();
-                      },
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.blueGrey,
-                          child: Icon(Icons.book, color: Colors.white, size: 20),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Dismissible(
+                        key: Key(item.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20.0),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.delete, color: Colors.white),
                         ),
-                        title: Row(
-                          children: [
-                            const Text('Journal Entry'),
-                            if (latest['hasRevisions']) ...[
-                              const SizedBox(width: 8),
-                              Icon(
-                                latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
-                                size: 16,
-                                color: Colors.grey,
-                              ),
-                            ],
-                          ],
+                        onDismissed: (direction) async {
+                          await DatabaseService.deleteJournal(item.id);
+                          _refreshData();
+                        },
+                        child: Card(
+                          elevation: 0,
+                          margin: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                          ),
+                          child: ListTile(
+                            leading: const CircleAvatar(
+                              backgroundColor: Colors.blueGrey,
+                              child: Icon(Icons.book, color: Colors.white, size: 18),
+                            ),
+                            title: Row(
+                              children: [
+                                const Text(
+                                  'Journal Entry',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                if (latest['hasRevisions']) ...[
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            subtitle: Text(
+                              latest['content'],
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                            trailing: Text(
+                              DateFormat('HH:mm').format(item.timestamp),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            onTap: () => _showJournalRevisionDialog(item),
+                          ),
                         ),
-                        subtitle: Text(
-                          latest['content'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Text(
-                          DateFormat('HH:mm').format(item.timestamp),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        onTap: () => _showJournalRevisionDialog(item),
                       ),
                     );
                   }

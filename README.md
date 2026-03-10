@@ -38,12 +38,15 @@ This project is currently in early development and serves both as a learning pro
 - Settings: Ability to skip unlocking for advanced users/ testing
 - Architecture: Feature-based architecture with local service-based data management
 - Revision System: "Correction" vs. "Reflection" flow with a visual timeline of emotional growth
+- Reminders added, using Alarm Channel on phone to override "Silent" mode on phone
+-  Custom colours added to settings 
+- Custom Emotions added
 
 ---
 
 ## Planned Features (Roadmap)
 
-### Phase 1 – Foundations Emotion check-ins
+### Phase 1 – Foundations Emotion check-ins [DONE]
 #### Core emotion tracking
 - Emotion entries with:
   - timestamp (date+time)
@@ -52,10 +55,13 @@ This project is currently in early development and serves both as a learning pro
 - unlimited manual entries per day
 - Soft reminders (~3x daily), configurable (push notification or alarm)
 - Monthly calendar View:
-  - each day visualized as a segmented circle or bar
+  - each day visualized as a segmented circle
   - Segments represent individual entries
   - Colours represent emotions
-#### Entry integrity and meaning over time
+  - opacity shows intensity
+  - orange circle shows trigger journal was used at least once
+  - dot represents Journal Entry
+#### Entry integrity and meaning over time [DONE]
 - Entries represent emotional moments, not mutable records
 - Past entries are never overwritten
 - Any change creates a revision, not a replacement
@@ -70,25 +76,27 @@ This project is currently in early development and serves both as a learning pro
   - are timestamped
   - are listable and explorable by the user
   - allow users to observe how their understanding evolved
-#### Editing UX philosophy
+#### Editing UX philosophy [DONE]
 - Editing an entry triggers a lightweight choice:
   - Correction
   - Reflection
-  - New Entry
 - Implemented via a non-intrusive snackbar
 - Reflection does not imply a new emotional moment
 - New emotional moments should be recorded as new entries
-- Lightweight choice between Correction, Reflection or New Entry
-#### Locking logic
-- Entries from past or future dates:
-  - Edit only via corrections or reflections
-  - Can be viewed or deleted
+- Lightweight choice between Correction or Reflection
+#### Locking logic [DONE]
+- Entries for past dates:
+  - asks before Entry can be made
+  - show date of when entry was made and which date the entry refers to
 - Only entries on current date can be newly created without the snackbar
 - This preserves:
   - authenticity of past states
   - freedom to gain insight later
   - protection against emotional "rewriting"
-#### Unlocking logic (use-based, not time based)
+  - only edits possible via Reflection or Correction dialogue
+  - delete via swipe
+#### Unlocking logic (use-based, not time based) [DONE]
+- granular Unlocking can be done via settings
 - Tier 1 emotions available from start
 - Unlock tier 2 emotions after tier 1 emotions used 7 times
 - Unlock tier 3 emotions after tier 2 emotions used 7 times
@@ -101,65 +109,30 @@ This project is currently in early development and serves both as a learning pro
   - tier 1, tier 2 and tier 3 emotion
   - tier 1 and tier 3 emotion
   - Tier 2 and tier 3 include a custom/ free-text option
-### Phase 1 - Foundation & Emotion check-ins
-#### Core emotion tracking [DONE]
-- Emotion entries with timestamp, tiers and intensity
-- Monthly calendar view with segmented colour circles
-- up to 3 daily reminders (push notification , vibrating and alarm)
-- app opens when notification is selected
-#### Entry integrity and meaning over time [DONE]
-- Revisions (Corrections vs. Reflections) instead of simple overwriting
-- Delta-based storage for changes
-- Historical entries protected from "rewriting" while allowing for later insight.
-#### Unlocking logic [DONE]
-- Sequential tier unlocking based on logs
-- Global "Skip" setting implemented
-#### Locking logic [DONE]
-- Past new entry asks before Entry can be made
-- Past entries show date of when entry was made and which date the entry refers to
-- only edits possible via Reflection or Correction dialogue
-- delete via swipe
-
-### Phase 2 – Intensity and Visual Reflection
+### Phase 2 – Intensity and Visual Reflection [DONE]
 - Intensity between 0-3
 - stored per entry
-- visualized as saturation, opacity or bar height in calendar view
-- Intensity is optional and may remain 0
-- Intensity usage counts toward unlock only when >0
-#### Body awareness
-- Prompt "Where in the body do you feel that emotion"
-- Interactive, zoomable body map (SVG-based)
-- Normalized coordinates stored
-- Emotion-to-body associations
-- Optional per entry
-#### Unlocking logic:
-- Body map unlocks after Intensity used 7 times
-- Intro screen explain body map usage
-### Phase 2 - Intensity and Visual Reflection [DONE]
-- Intensity slider
-- stored per entry
-- visualized by opacity in calendar view
+- visualized as opacity in calendar view
 - Intensity is optional and may remain 0
 - Intensity usage counts toward unlock only when >0
 #### Body awareness [DONE]
-- Prompt
-- Interactive, zoomable body map (male, female, neutral) SVGs
+- Prompt "Where in the body do you feel that emotion"
+- Interactive, zoomable body map (SVG-based, male, neutral, female)
 - Normalized coordinate paths stored
+- Emotion-to-body associations
 - Optional per entry
 - Thumbnail in History screen
 - History Entry clickable, Read only mode
-#### Unlocking logic [DONE]
+#### Unlocking logic: [DONE]
 - Body map unlocks after Intensity used 7 times
 - Intro screen explain body map usage
-
 ### Phase 3 – Trigger prompts [DONE]
 - Optional Prompt "Do you want to note what influenced this?"
 - short free-text input or keywords
 - never mandatory
 - Visual indicator on calendar when trigger exists (font of date number different colour?)
-#### Unlocking logic:
+#### Unlocking logic: [DONE]
 - Trigger prompts unlock after Body Map used 3 times
-
 ### Phase 4 – Free journal [DONE]
 - Long-form text entries
 - Date-based, not forced daily
@@ -169,7 +142,6 @@ This project is currently in early development and serves both as a learning pro
 - reflection/correction like emotion entry
 - new "add" model to just add to an entry without editing the early text
 - optional journaling prompts (maybe added later)
-
 ### Phase 5 – Data Export 
 - Export entries (full or partial) as PDF
 - User-controlled scope and date ranges
