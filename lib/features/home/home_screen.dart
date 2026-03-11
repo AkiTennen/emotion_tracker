@@ -734,13 +734,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         ],
       ),
-      floatingActionButton: _selectedDay != null
-          ? FloatingActionButton(
-        onPressed: _onAddButtonPressed,
-        tooltip: 'Add',
-        child: const Icon(Icons.add),
-      )
-          : null,
     );
   }
 }
