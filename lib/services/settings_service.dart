@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'reminder_service.dart';
 
@@ -21,9 +22,49 @@ class SettingsService {
   static const String bodyMapIntroShownKey = 'body_map_intro_shown';
   static const String showJournalKey = 'show_journal_feature';
   static const String customColorsKey = 'custom_colors';
+  static const String themeModeKey = 'theme_mode';
+  static const String firstDayOfWeekKey = 'first_day_of_week';
+  static const String dateFormatKey = 'date_format';
 
   static Future<void> init() async {
     await Hive.openBox(settingsBoxName);
+  }
+
+  // --- Theme ---
+
+  static ThemeMode getThemeMode() {
+    final box = Hive.box(settingsBoxName);
+    final String modeName = box.get(themeModeKey, defaultValue: ThemeMode.system.name);
+    return ThemeMode.values.byName(modeName);
+  }
+
+  static Future<void> setThemeMode(ThemeMode mode) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(themeModeKey, mode.name);
+  }
+
+  // --- Localization & Preferences ---
+
+  static int getFirstDayOfWeek() {
+    final box = Hive.box(settingsBoxName);
+    // Default to Monday (1)
+    return box.get(firstDayOfWeekKey, defaultValue: 1);
+  }
+
+  static Future<void> setFirstDayOfWeek(int value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(firstDayOfWeekKey, value);
+  }
+
+  static String getDateFormat() {
+    final box = Hive.box(settingsBoxName);
+    // Default format
+    return box.get(dateFormatKey, defaultValue: 'EEEE, MMMM d');
+  }
+
+  static Future<void> setDateFormat(String format) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(dateFormatKey, format);
   }
 
   // --- Progression ---

@@ -26,6 +26,7 @@ class JournalEditorScreen extends StatefulWidget {
 class _JournalEditorScreenState extends State<JournalEditorScreen> {
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
+  final FocusNode _contentFocusNode = FocusNode();
   List<EmotionEntry> _dayEntries = [];
   String _previousContent = '';
 
@@ -55,6 +56,7 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
   void dispose() {
     _contentController.dispose();
     _reflectionController.dispose();
+    _contentFocusNode.dispose();
     super.dispose();
   }
 
@@ -111,37 +113,55 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
       if (widget.revisionType == RevisionType.addition) title = 'Adding to Journal';
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
-        actions: [
-          IconButton(
-            onPressed: _save,
-            icon: const Icon(Icons.check),
-          ),
-        ],
       ),
       body: Column(
         children: [
           // REFERENCE HEADER
           if (_dayEntries.isNotEmpty)
             Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(16),
-              color: Colors.grey[50],
+              color: isDark ? Colors.grey[900] : Colors.grey[50],
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Today\'s Emotions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                  const SizedBox(height: 8),
+                  Text('Today\'s Emotions', 
+                    style: TextStyle(
+                      fontSize: 12, 
+                      fontWeight: FontWeight.bold, 
+                      color: Theme.of(context).hintColor
+                    )
+                  ),
+                  const SizedBox(height: 12),
                   Wrap(
-                    spacing: 4,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: _dayEntries.map((e) {
                       final latest = DatabaseService.getLatestState(e);
-                      return Chip(
-                        label: Text(latest['tier1'], style: const TextStyle(fontSize: 10)),
-                        backgroundColor: EmotionData.getColor(latest['tier1']).withOpacity(0.1),
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
+                      final emotionColor = EmotionData.getColor(latest['tier1']);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: emotionColor.withOpacity(isDark ? 0.2 : 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: emotionColor.withOpacity(isDark ? 0.5 : 0.4),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Text(
+                          latest['tier1'],
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? emotionColor.withOpacity(0.95) : emotionColor.withOpacity(0.9),
+                          ),
+                        ),
                       );
                     }).toList(),
                   ),
@@ -162,40 +182,69 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
             ),
 
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (widget.revisionType == RevisionType.addition && _previousContent.isNotEmpty) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
+            child: GestureDetector(
+              onTap: () => _contentFocusNode.requestFocus(),
+              behavior: HitTestBehavior.opaque,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.revisionType == RevisionType.addition && _previousContent.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[850] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Theme.of(context).dividerColor),
+                        ),
+                        child: Text(
+                          _previousContent,
+                          style: TextStyle(
+                            fontSize: 16, 
+                            color: isDark ? Colors.grey[400] : Colors.grey[700], 
+                            height: 1.4
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        _previousContent,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.4),
+                      const SizedBox(height: 16),
+                      Text('New Addition:', 
+                        style: TextStyle(
+                          fontSize: 12, 
+                          fontWeight: FontWeight.bold, 
+                          color: Theme.of(context).colorScheme.primary
+                        )
                       ),
+                      const SizedBox(height: 8),
+                    ],
+                    TextField(
+                      controller: _contentController,
+                      focusNode: _contentFocusNode,
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        hintText: widget.revisionType == RevisionType.addition ? 'Add more thoughts...' : 'Write your thoughts here...',
+                        border: InputBorder.none,
+                      ),
+                      style: const TextStyle(fontSize: 18, height: 1.5),
+                      autofocus: widget.revisionType == RevisionType.addition,
                     ),
-                    const SizedBox(height: 16),
-                    const Text('New Addition:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 200),
                   ],
-                  TextField(
-                    controller: _contentController,
-                    maxLines: null,
-                    decoration: InputDecoration(
-                      hintText: widget.revisionType == RevisionType.addition ? 'Add more thoughts...' : 'Write your thoughts here...',
-                      border: InputBorder.none,
-                    ),
-                    style: const TextStyle(fontSize: 18, height: 1.5),
-                    autofocus: widget.revisionType == RevisionType.addition,
-                  ),
-                ],
+                ),
+              ),
+            ),
+          ),
+          
+          // BOTTOM SAVE BUTTON
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _save,
+                child: Text(widget.existingJournal == null ? 'Save Journal Entry' : 'Save Revision'),
               ),
             ),
           ),

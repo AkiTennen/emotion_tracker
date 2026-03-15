@@ -39,8 +39,11 @@ This project is currently in early development and serves both as a learning pro
 - Architecture: Feature-based architecture with local service-based data management
 - Revision System: "Correction" vs. "Reflection" flow with a visual timeline of emotional growth
 - Reminders added, using Alarm Channel on phone to override "Silent" mode on phone
--  Custom colours added to settings 
+- Custom colours added to settings 
 - Custom Emotions added
+- Dark Mode added
+- Date Format settings added
+- Journal read only screen added
 
 ---
 

@@ -11,9 +11,11 @@ import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
 import '../add_emotion/add_emotion_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../main.dart';
 import 'entry_detail_screen.dart';
 import 'journal_editor_screen.dart';
 import 'journal_detail_screen.dart';
+import 'journal_read_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -140,6 +142,17 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.menu_book),
+              title: const Text('Read entry'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => JournalReadScreen(journal: journal)),
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.history),
               title: const Text('View history'),
@@ -347,6 +360,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Stack(
         alignment: Alignment.center,
@@ -367,7 +382,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           Container(
             decoration: isSelected 
-                ? BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.black54, width: 2))
+                ? BoxDecoration(
+                    shape: BoxShape.circle, 
+                    border: Border.all(color: isDark ? Colors.white54 : Colors.black54, width: 2)
+                  )
                 : null,
             padding: const EdgeInsets.all(6),
             child: Column(
@@ -376,7 +394,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   '${day.day}',
                   style: TextStyle(
-                    color: isOutside ? Colors.grey : (dayEntries.isNotEmpty ? Colors.black : (isToday ? Colors.blue : Colors.black87)),
+                    color: isOutside 
+                        ? Theme.of(context).disabledColor 
+                        : (dayEntries.isNotEmpty 
+                            ? (isDark ? Colors.white : Colors.black) 
+                            : (isToday ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyLarge?.color)),
                     fontWeight: isToday || isSelected || dayEntries.isNotEmpty ? FontWeight.bold : FontWeight.normal,
                     fontSize: 16,
                   ),
@@ -385,8 +407,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Container(
                     width: 4,
                     height: 4,
-                    decoration: const BoxDecoration(
-                      color: Colors.blueGrey,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -408,6 +430,8 @@ class _HomeScreenState extends State<HomeScreen> {
     combinedItems.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
     final bool isTodaySelected = _selectedDay != null && isSameDay(_selectedDay, DateTime.now());
+    final String dateFormatString = SettingsService.getDateFormat();
+    final int firstDayOfWeekValue = SettingsService.getFirstDayOfWeek();
 
     return Scaffold(
       appBar: AppBar(
@@ -418,7 +442,13 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => SettingsScreen(
+                    onThemeChanged: () {
+                      EmotionTrackerApp.of(context).updateThemeMode();
+                    },
+                  ),
+                ),
               );
               _refreshData();
             },
@@ -438,16 +468,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   _getGreeting(),
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
                       ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   isTodaySelected 
                     ? "How are you feeling right now?" 
-                    : "Reviewing ${DateFormat('MMMM d').format(_selectedDay!)}",
+                    : "Reviewing ${DateFormat(dateFormatString).format(_selectedDay!)}",
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).hintColor,
                       ),
                 ),
                 const SizedBox(height: 20),
@@ -458,7 +487,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         icon: Icons.add_reaction_outlined,
                         label: "Log Emotion",
-                        color: Colors.indigo,
+                        color: Theme.of(context).colorScheme.primary,
                         onTap: () => _openAddEmotionScreen(),
                       ),
                     ),
@@ -469,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           context,
                           icon: Icons.edit_note_outlined,
                           label: "Write Journal",
-                          color: Colors.blueGrey,
+                          color: Theme.of(context).colorScheme.secondary,
                           onTap: () => _openJournalEditor(),
                         ),
                       ),
@@ -489,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   "Calendar",
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).hintColor,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
@@ -521,6 +550,7 @@ class _HomeScreenState extends State<HomeScreen> {
             lastDay: DateTime.now(),
             focusedDay: _focusedDay,
             calendarFormat: _calendarFormat,
+            startingDayOfWeek: firstDayOfWeekValue == 1 ? StartingDayOfWeek.monday : StartingDayOfWeek.sunday,
             onFormatChanged: (format) {
               setState(() {
                 _calendarFormat = format;
@@ -538,8 +568,8 @@ class _HomeScreenState extends State<HomeScreen> {
               formatButtonVisible: false,
               headerPadding: const EdgeInsets.symmetric(vertical: 4.0),
               titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              leftChevronIcon: Icon(Icons.chevron_left, color: Colors.grey[400], size: 20),
-              rightChevronIcon: Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+              leftChevronIcon: Icon(Icons.chevron_left, color: Theme.of(context).hintColor, size: 20),
+              rightChevronIcon: Icon(Icons.chevron_right, color: Theme.of(context).hintColor, size: 20),
             ),
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, focusedDay) => _buildDayCell(day),
@@ -557,10 +587,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Text(
-              isTodaySelected ? "Today so far" : "Your journey on ${DateFormat('MMM d').format(_selectedDay!)}",
+              isTodaySelected ? "Today so far" : "Your journey on ${DateFormat(dateFormatString).format(_selectedDay!)}",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
                   ),
             ),
           ),
@@ -574,11 +603,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.wb_sunny_outlined, size: 48, color: Colors.grey[200]),
+                          Icon(Icons.wb_sunny_outlined, size: 48, color: Theme.of(context).disabledColor.withOpacity(0.2)),
                           const SizedBox(height: 16),
                           Text(
                             'No entries yet.',
-                            style: TextStyle(color: Colors.grey[400], fontSize: 16),
+                            style: TextStyle(color: Theme.of(context).disabledColor, fontSize: 16),
                           ),
                         ],
                       ),
@@ -618,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           margin: EdgeInsets.zero,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                            side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
                           ),
                           child: ListTile(
                             onTap: () => _showRevisionDialog(item),
@@ -627,7 +656,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Text(
                                 intensity.toString(),
                                 style: TextStyle(
-                                  color: opacity > 0.6 ? Colors.white : Colors.black87,
+                                  color: opacity > 0.6 ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -643,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Icon(
                                     latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
                                     size: 16,
-                                    color: Colors.grey,
+                                    color: Theme.of(context).hintColor,
                                   ),
                                 ],
                                 if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
@@ -654,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             subtitle: Text(
                               '${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}',
-                              style: TextStyle(color: Colors.grey[600]),
+                              style: TextStyle(color: Theme.of(context).hintColor),
                             ),
                             trailing: Text(
                               DateFormat('HH:mm').format(item.timestamp),
@@ -689,12 +718,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           margin: EdgeInsets.zero,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+                            side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
                           ),
                           child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundColor: Colors.blueGrey,
-                              child: Icon(Icons.book, color: Colors.white, size: 18),
+                            leading: CircleAvatar(
+                              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                              child: Icon(Icons.book, color: Theme.of(context).colorScheme.onSecondaryContainer, size: 18),
                             ),
                             title: Row(
                               children: [
@@ -707,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Icon(
                                     latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
                                     size: 16,
-                                    color: Colors.grey,
+                                    color: Theme.of(context).hintColor,
                                   ),
                                 ],
                               ],
@@ -716,7 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               latest['content'],
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: Colors.grey[600]),
+                              style: TextStyle(color: Theme.of(context).hintColor),
                             ),
                             trailing: Text(
                               DateFormat('HH:mm').format(item.timestamp),

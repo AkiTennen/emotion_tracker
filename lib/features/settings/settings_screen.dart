@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:intl/intl.dart';
 import '../../services/settings_service.dart';
 import '../../services/reminder_service.dart';
 import '../../services/backup_service.dart';
 import '../../models/emotion_data.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final VoidCallback onThemeChanged;
+  const SettingsScreen({super.key, required this.onThemeChanged});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -18,6 +20,17 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   List<Reminder> _reminders = [];
   final List<TextEditingController> _controllers = [];
   late BodyType _currentBodyType;
+  late ThemeMode _currentThemeMode;
+  late int _firstDayOfWeek;
+  late String _currentDateFormat;
+
+  final List<String> _dateFormats = [
+    'EEEE, MMMM d',
+    'MMM d, yyyy',
+    'dd/MM/yyyy',
+    'MM/dd/yyyy',
+    'yyyy-MM-dd',
+  ];
 
   @override
   void initState() {
@@ -25,6 +38,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     _tabController = TabController(length: 4, vsync: this);
     _loadReminders();
     _currentBodyType = SettingsService.getBodyType();
+    _currentThemeMode = SettingsService.getThemeMode();
+    _firstDayOfWeek = SettingsService.getFirstDayOfWeek();
+    _currentDateFormat = SettingsService.getDateFormat();
     ReminderService.requestPermissions();
   }
 
@@ -141,9 +157,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                   Container(
                     height: 200,
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[800] : Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                     ),
                     child: Row(
                       children: [
@@ -152,7 +168,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                             padding: const EdgeInsets.all(8.0),
                             child: SvgPicture.asset(
                               'assets/body_maps/front_${tempType.name}.svg',
-                              colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
+                              colorFilter: ColorFilter.mode(Theme.of(context).hintColor.withOpacity(0.3), BlendMode.srcIn),
                             ),
                           ),
                         ),
@@ -162,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                             padding: const EdgeInsets.all(8.0),
                             child: SvgPicture.asset(
                               'assets/body_maps/back_${tempType.name}.svg',
-                              colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
+                              colorFilter: ColorFilter.mode(Theme.of(context).hintColor.withOpacity(0.3), BlendMode.srcIn),
                             ),
                           ),
                         ),
@@ -252,6 +268,78 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           // TAB 1: General & Progression
           ListView(
             children: [
+              _buildSectionHeader('APPEARANCE'),
+              ListTile(
+                title: const Text('Theme Mode'),
+                subtitle: Text('Current: ${_currentThemeMode.name[0].toUpperCase() + _currentThemeMode.name.substring(1)}'),
+                trailing: DropdownButton<ThemeMode>(
+                  value: _currentThemeMode,
+                  underline: const SizedBox(),
+                  onChanged: (ThemeMode? newValue) async {
+                    if (newValue != null) {
+                      await SettingsService.setThemeMode(newValue);
+                      setState(() => _currentThemeMode = newValue);
+                      widget.onThemeChanged();
+                    }
+                  },
+                  items: ThemeMode.values.map((ThemeMode mode) {
+                    return DropdownMenuItem<ThemeMode>(
+                      value: mode,
+                      child: Text(mode.name[0].toUpperCase() + mode.name.substring(1)),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const Divider(),
+              _buildSectionHeader('LOCALIZATION'),
+              ListTile(
+                title: const Text('First Day of Week'),
+                subtitle: Text('Current: ${_firstDayOfWeek == 1 ? "Monday" : "Sunday"}'),
+                trailing: DropdownButton<int>(
+                  value: _firstDayOfWeek,
+                  underline: const SizedBox(),
+                  onChanged: (int? newValue) async {
+                    if (newValue != null) {
+                      await SettingsService.setFirstDayOfWeek(newValue);
+                      setState(() => _firstDayOfWeek = newValue);
+                    }
+                  },
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('Monday')),
+                    DropdownMenuItem(value: 7, child: Text('Sunday')),
+                  ],
+                ),
+              ),
+              ListTile(
+                title: const Text('Date Format'),
+                subtitle: Text('Preview: ${DateFormat(_currentDateFormat).format(DateTime.now())}'),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Select Date Format'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: _dateFormats.map((format) {
+                          return RadioListTile<String>(
+                            title: Text(DateFormat(format).format(DateTime.now())),
+                            value: format,
+                            groupValue: _currentDateFormat,
+                            onChanged: (String? value) async {
+                              if (value != null) {
+                                await SettingsService.setDateFormat(value);
+                                setState(() => _currentDateFormat = value);
+                                if (context.mounted) Navigator.pop(context);
+                              }
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
               _buildSectionHeader('FEATURES'),
               SwitchListTile(
                 title: const Text('Journaling'),
@@ -499,7 +587,13 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 subtitle: const Text('Import data from a backup file.'),
                 onTap: () async {
                   final success = await BackupService.importBackup();
-                  if (success) setState(() => _currentBodyType = SettingsService.getBodyType());
+                  if (success) {
+                    setState(() {
+                      _currentBodyType = SettingsService.getBodyType();
+                      _firstDayOfWeek = SettingsService.getFirstDayOfWeek();
+                      _currentDateFormat = SettingsService.getDateFormat();
+                    });
+                  }
                 },
               ),
               const Divider(),
@@ -555,7 +649,7 @@ class _AlertOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? Theme.of(context).primaryColor : Colors.grey;
+    final color = isSelected ? Theme.of(context).colorScheme.primary : Colors.grey;
     return InkWell(
       onTap: onTap,
       child: Container(

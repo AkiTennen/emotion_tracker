@@ -16,6 +16,7 @@ class EntryDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final revisions = DatabaseService.getRevisionsForEntry(entry.id);
+    final dateFormat = SettingsService.getDateFormat();
     
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +38,8 @@ class EntryDetailScreen extends StatelessWidget {
               bodyMapData: entry.bodyMapData,
               trigger: entry.trigger,
               isOriginal: true,
-              description: 'Refers to ${DateFormat('MMM d, HH:mm').format(entry.timestamp)}',
+              dateFormat: dateFormat,
+              description: 'Refers to ${DateFormat(dateFormat).format(entry.timestamp)}, ${DateFormat('HH:mm').format(entry.timestamp)}',
             ),
             ...revisions.map((rev) => _buildTimelineTile(
               context,
@@ -51,6 +53,7 @@ class EntryDetailScreen extends StatelessWidget {
               trigger: rev.trigger,
               note: rev.reflectionText,
               icon: rev.revisionType == RevisionType.correction ? Icons.edit_note : Icons.psychology,
+              dateFormat: dateFormat,
             )),
           ],
         ),
@@ -63,6 +66,7 @@ class EntryDetailScreen extends StatelessWidget {
     required String title,
     required DateTime timestamp,
     required String tier1,
+    required String dateFormat,
     String? tier2,
     String? tier3,
     required int intensity,
@@ -75,6 +79,7 @@ class EntryDetailScreen extends StatelessWidget {
   }) {
     final color = EmotionData.getColor(tier1);
     final double opacity = 0.25 + (intensity * 0.25);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return IntrinsicHeight(
       child: Row(
@@ -93,12 +98,12 @@ class EntryDetailScreen extends StatelessWidget {
                     BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4),
                   ],
                 ),
-                child: icon != null ? Icon(icon, size: 10, color: opacity > 0.6 ? Colors.white : Colors.black87) : null,
+                child: icon != null ? Icon(icon, size: 10, color: opacity > 0.6 ? Colors.white : (isDark ? Colors.white : Colors.black87)) : null,
               ),
               Expanded(
                 child: Container(
                   width: 2,
-                  color: Colors.grey.shade300,
+                  color: Theme.of(context).dividerColor,
                 ),
               ),
             ],
@@ -113,21 +118,21 @@ class EntryDetailScreen extends StatelessWidget {
                   children: [
                     Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     Text(
-                      DateFormat('MMM d, HH:mm').format(timestamp),
+                      '${DateFormat(dateFormat).format(timestamp)}, ${DateFormat('HH:mm').format(timestamp)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
                 if (description != null) 
-                  Text(description, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Colors.grey)),
+                  Text(description, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).hintColor)),
                 const SizedBox(height: 4),
                 Card(
                   margin: const EdgeInsets.only(bottom: 24),
                   elevation: 0,
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(isDark ? 0.2 : 0.1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: color.withOpacity(0.2)),
+                    side: BorderSide(color: color.withOpacity(isDark ? 0.4 : 0.2)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -158,7 +163,7 @@ class EntryDetailScreen extends StatelessWidget {
                                             'Trigger: $trigger',
                                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                               fontStyle: FontStyle.italic,
-                                              color: Colors.black87,
+                                              color: isDark ? Colors.grey[300] : Colors.black87,
                                             ),
                                           ),
                                         ),
@@ -192,7 +197,7 @@ class EntryDetailScreen extends StatelessWidget {
                                   width: 60,
                                   height: 60,
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: isDark ? Colors.grey[850] : Colors.white,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: color.withOpacity(0.3)),
                                   ),

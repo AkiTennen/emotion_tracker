@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
+import 'dart:math' as math;
 import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
@@ -224,7 +226,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     );
 
     if (widget.existingEntry != null && widget.revisionType != null) {
-      // Save as Revision
+      // Save Revision
       final revision = EmotionEntryRevision(
         emotionEntryId: widget.existingEntry!.id,
         revisionType: widget.revisionType!,
@@ -232,13 +234,13 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         tier2Emotion: _selectedTier2,
         tier3Emotion: _selectedTier3,
         intensity: _isIntensityUnlocked ? _intensity.toInt() : 0,
-        reflectionText: _reflectionText,
+        reflectionText: _reflectionController.text.trim(),
         bodyMapData: _bodyMapData,
         trigger: _triggerText,
       );
       await DatabaseService.saveRevision(revision);
     } else {
-      // Save as New Entry
+      // Save New Entry
       final entry = EmotionEntry(
         id: const Uuid().v4(),
         timestamp: timestamp,
@@ -314,6 +316,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   @override
   Widget build(BuildContext context) {
     final color = _selectedTier1 != null ? EmotionData.getColor(_selectedTier1!) : null;
+    final dateFormat = SettingsService.getDateFormat();
 
     final customT2 = _selectedTier1 != null ? DatabaseService.getCustomTier2Emotions(_selectedTier1!) : <String>[];
     final customT3 = _selectedTier1 != null ? DatabaseService.getCustomTier3Emotions(_selectedTier1!) : <String>[];
@@ -470,9 +473,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey[100],
+                      color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[900] : Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: Theme.of(context).dividerColor),
                     ),
                     child: Row(
                       children: [
@@ -496,9 +499,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[850] : Colors.white,
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(color: Theme.of(context).dividerColor),
                             ),
                             child: CustomPaint(
                               painter: BodyMapSmallPreviewPainter(

@@ -16,17 +16,53 @@ void main() async {
   runApp(const EmotionTrackerApp());
 }
 
-class EmotionTrackerApp extends StatelessWidget {
+class EmotionTrackerApp extends StatefulWidget {
   const EmotionTrackerApp({super.key});
+
+  static _EmotionTrackerAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_EmotionTrackerAppState>()!;
+
+  @override
+  State<EmotionTrackerApp> createState() => _EmotionTrackerAppState();
+}
+
+class _EmotionTrackerAppState extends State<EmotionTrackerApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = SettingsService.getThemeMode();
+  }
+
+  void updateThemeMode() {
+    setState(() {
+      _themeMode = SettingsService.getThemeMode();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Emotion Tracker',
+      themeMode: _themeMode,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueGrey,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
-        // Make our app bar look a bit cleaner
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+        ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueGrey,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,

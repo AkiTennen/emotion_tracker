@@ -4,6 +4,7 @@ import '../../models/journal_entry.dart';
 import '../../models/journal_revision.dart';
 import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
+import '../../services/settings_service.dart';
 
 class JournalDetailScreen extends StatelessWidget {
   final JournalEntry journal;
@@ -13,6 +14,7 @@ class JournalDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final revisions = DatabaseService.getRevisionsForJournal(journal.id);
+    final dateFormat = SettingsService.getDateFormat();
     
     return Scaffold(
       appBar: AppBar(
@@ -29,6 +31,7 @@ class JournalDetailScreen extends StatelessWidget {
               timestamp: journal.createdAt,
               content: journal.content,
               isOriginal: true,
+              dateFormat: dateFormat,
             ),
             ...revisions.map((rev) => _buildJournalTimelineTile(
               context,
@@ -37,6 +40,7 @@ class JournalDetailScreen extends StatelessWidget {
               content: rev.content,
               note: rev.reflectionText,
               icon: _getIcon(rev.revisionType),
+              dateFormat: dateFormat,
             )),
           ],
         ),
@@ -65,6 +69,7 @@ class JournalDetailScreen extends StatelessWidget {
     required String title,
     required DateTime timestamp,
     required String content,
+    required String dateFormat,
     String? note,
     bool isOriginal = false,
     IconData? icon,
@@ -79,7 +84,7 @@ class JournalDetailScreen extends StatelessWidget {
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: Colors.blueGrey,
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
@@ -91,7 +96,7 @@ class JournalDetailScreen extends StatelessWidget {
               Expanded(
                 child: Container(
                   width: 2,
-                  color: Colors.grey.shade300,
+                  color: Theme.of(context).dividerColor,
                 ),
               ),
             ],
@@ -106,7 +111,7 @@ class JournalDetailScreen extends StatelessWidget {
                   children: [
                     Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     Text(
-                      DateFormat('MMM d, HH:mm').format(timestamp),
+                      '${DateFormat(dateFormat).format(timestamp)}, ${DateFormat('HH:mm').format(timestamp)}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -115,10 +120,10 @@ class JournalDetailScreen extends StatelessWidget {
                 Card(
                   margin: const EdgeInsets.only(bottom: 24),
                   elevation: 0,
-                  color: Colors.blueGrey.withOpacity(0.05),
+                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.blueGrey.withOpacity(0.1)),
+                    side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.2)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
