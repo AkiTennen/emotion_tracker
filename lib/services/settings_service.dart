@@ -13,7 +13,9 @@ class SettingsService {
   
   // Keys
   static const String skipUnlockingKey = 'skip_unlocking';
-  static const String unlockEmotionsKey = 'unlock_emotions';
+  static const String unlockTier2Key = 'unlock_tier_2';
+  static const String unlockTier3Key = 'unlock_tier_3';
+  static const String unlockIntensityKey = 'unlock_intensity';
   static const String unlockBodyMapKey = 'unlock_body_map';
   static const String unlockTriggerPromptsKey = 'unlock_trigger_prompts';
   
@@ -47,7 +49,6 @@ class SettingsService {
 
   static int getFirstDayOfWeek() {
     final box = Hive.box(settingsBoxName);
-    // Default to Monday (1)
     return box.get(firstDayOfWeekKey, defaultValue: 1);
   }
 
@@ -58,7 +59,6 @@ class SettingsService {
 
   static String getDateFormat() {
     final box = Hive.box(settingsBoxName);
-    // Default format
     return box.get(dateFormatKey, defaultValue: 'EEEE, MMMM d');
   }
 
@@ -79,15 +79,37 @@ class SettingsService {
     await box.put(skipUnlockingKey, value);
   }
 
-  static bool isEmotionsUnlocked() {
+  static bool isTier2Unlocked() {
     if (shouldSkipUnlocking()) return true;
     final box = Hive.box(settingsBoxName);
-    return box.get(unlockEmotionsKey, defaultValue: false);
+    return box.get(unlockTier2Key, defaultValue: false);
   }
 
-  static Future<void> setEmotionsUnlocked(bool value) async {
+  static Future<void> setTier2Unlocked(bool value) async {
     final box = Hive.box(settingsBoxName);
-    await box.put(unlockEmotionsKey, value);
+    await box.put(unlockTier2Key, value);
+  }
+
+  static bool isTier3Unlocked() {
+    if (shouldSkipUnlocking()) return true;
+    final box = Hive.box(settingsBoxName);
+    return box.get(unlockTier3Key, defaultValue: false);
+  }
+
+  static Future<void> setTier3Unlocked(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(unlockTier3Key, value);
+  }
+
+  static bool isIntensityUnlocked() {
+    if (shouldSkipUnlocking()) return true;
+    final box = Hive.box(settingsBoxName);
+    return box.get(unlockIntensityKey, defaultValue: false);
+  }
+
+  static Future<void> setIntensityUnlocked(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(unlockIntensityKey, value);
   }
 
   static bool isBodyMapUnlocked() {

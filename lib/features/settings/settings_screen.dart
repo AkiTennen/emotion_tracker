@@ -374,10 +374,26 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                   child: Column(
                     children: [
                       SwitchListTile(
-                        title: const Text('Emotion Tiers & Intensity'),
-                        value: SettingsService.isEmotionsUnlocked(),
+                        title: const Text('Secondary Emotions (Tier 2)'),
+                        value: SettingsService.isTier2Unlocked(),
                         onChanged: (val) async {
-                          await SettingsService.setEmotionsUnlocked(val);
+                          await SettingsService.setTier2Unlocked(val);
+                          setState(() {});
+                        },
+                      ),
+                      SwitchListTile(
+                        title: const Text('Tertiary Emotions (Tier 3)'),
+                        value: SettingsService.isTier3Unlocked(),
+                        onChanged: (val) async {
+                          await SettingsService.setTier3Unlocked(val);
+                          setState(() {});
+                        },
+                      ),
+                      SwitchListTile(
+                        title: const Text('Intensity Slider'),
+                        value: SettingsService.isIntensityUnlocked(),
+                        onChanged: (val) async {
+                          await SettingsService.setIntensityUnlocked(val);
                           setState(() {});
                         },
                       ),

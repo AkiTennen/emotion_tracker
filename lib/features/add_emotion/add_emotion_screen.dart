@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import 'dart:math' as math;
 import '../../models/emotion_data.dart';
 import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
@@ -69,14 +68,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
   void _checkUnlocks() {
     setState(() {
-      // VISIBILITY LOGIC:
-      // If the setting is ON, it's visible. 
-      // If it's OFF, it's hidden (even if earned via progression counts).
-      final emotionsSetting = SettingsService.isEmotionsUnlocked();
-      _isTier2Unlocked = emotionsSetting;
-      _isTier3Unlocked = emotionsSetting;
-      _isIntensityUnlocked = emotionsSetting;
-      
+      _isTier2Unlocked = SettingsService.isTier2Unlocked();
+      _isTier3Unlocked = SettingsService.isTier3Unlocked();
+      _isIntensityUnlocked = SettingsService.isIntensityUnlocked(); 
       _isBodyMapUnlocked = SettingsService.isBodyMapUnlocked();
       _isTriggerUnlocked = SettingsService.isTriggerPromptsUnlocked();
     });
@@ -135,40 +129,48 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     final match = EmotionData.findMatch(text, customT2Map: allT2, customT3Map: allT3);
 
     if (match != null) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('A familiar feeling?'),
-          content: Text(
-            match.isCustom 
-              ? 'You have used "$text" before as a part of the "${match.tier1}" category.\n\nWould you like to use that existing path?'
-              : 'It looks like "$text" is already a built-in part of the "${match.tier1}" category.\n\nWould you like to use the existing path, or keep your own word?'
+      bool isMatchUnlocked = false;
+      if (match.tier == 1) isMatchUnlocked = true;
+      if (match.tier == 2 && _isTier2Unlocked) isMatchUnlocked = true;
+      if (match.tier == 3 && _isTier3Unlocked) isMatchUnlocked = true;
+
+      if (isMatchUnlocked) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('A familiar feeling?'),
+            content: Text(
+              match.isCustom 
+                ? 'You have used "$text" before as a part of the "${match.tier1}" category.\n\nWould you like to use that existing path?'
+                : 'It looks like "$text" is already a built-in part of the "${match.tier1}" category.\n\nWould you like to use the existing path, or keep your own word?'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedTier1 = match.tier1;
+                    _selectedTier2 = match.tier2;
+                    _selectedTier3 = match.tier3;
+                  });
+                  Navigator.pop(context);
+                },
+                child: const Text('Use Existing'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await _persistAndSetCustomValue(text, tier);
+                  Navigator.pop(context);
+                },
+                child: const Text('Keep Custom'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _selectedTier1 = match.tier1;
-                  _selectedTier2 = match.tier2;
-                  _selectedTier3 = match.tier3;
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Use Existing'),
-            ),
-            TextButton(
-              onPressed: () async {
-                await _persistAndSetCustomValue(text, tier);
-                Navigator.pop(context);
-              },
-              child: const Text('Keep Custom'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      _persistAndSetCustomValue(text, tier);
+        );
+        return;
+      }
     }
+    
+    _persistAndSetCustomValue(text, tier);
   }
 
   Future<void> _persistAndSetCustomValue(String text, int tier) async {
@@ -215,7 +217,6 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     if (_selectedTier1 == null) return;
 
     final now = DateTime.now();
-    // Combine selected calendar date with current time
     final timestamp = DateTime(
       widget.selectedDate.year,
       widget.selectedDate.month,
@@ -226,7 +227,6 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     );
 
     if (widget.existingEntry != null && widget.revisionType != null) {
-      // Save Revision
       final revision = EmotionEntryRevision(
         emotionEntryId: widget.existingEntry!.id,
         revisionType: widget.revisionType!,
@@ -240,7 +240,6 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       );
       await DatabaseService.saveRevision(revision);
     } else {
-      // Save New Entry
       final entry = EmotionEntry(
         id: const Uuid().v4(),
         timestamp: timestamp,
@@ -255,16 +254,20 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       await DatabaseService.saveEntry(entry);
     }
     
-    // Check if new unlocks should happen automatically
     _updateProgressionThresholds();
 
     if (mounted) Navigator.pop(context);
   }
 
   void _updateProgressionThresholds() async {
-    // This maintains the "earning" logic in the background
-    if (!SettingsService.isEmotionsUnlocked() && DatabaseService.getTier1Count() >= 7) {
-      await SettingsService.setEmotionsUnlocked(true);
+    if (!SettingsService.isTier2Unlocked() && DatabaseService.getTier1Count() >= 7) {
+      await SettingsService.setTier2Unlocked(true);
+    }
+    if (!SettingsService.isTier3Unlocked() && DatabaseService.getTier2Count() >= 7) {
+      await SettingsService.setTier3Unlocked(true);
+    }
+    if (!SettingsService.isIntensityUnlocked() && DatabaseService.getTier3Count() >= 7) {
+      await SettingsService.setIntensityUnlocked(true);
     }
     if (!SettingsService.isBodyMapUnlocked() && DatabaseService.getIntensityCount() >= 7) {
       await SettingsService.setBodyMapUnlocked(true);
@@ -316,7 +319,6 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   @override
   Widget build(BuildContext context) {
     final color = _selectedTier1 != null ? EmotionData.getColor(_selectedTier1!) : null;
-    final dateFormat = SettingsService.getDateFormat();
 
     final customT2 = _selectedTier1 != null ? DatabaseService.getCustomTier2Emotions(_selectedTier1!) : <String>[];
     final customT3 = _selectedTier1 != null ? DatabaseService.getCustomTier3Emotions(_selectedTier1!) : <String>[];
