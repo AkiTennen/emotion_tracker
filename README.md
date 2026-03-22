@@ -44,6 +44,9 @@ This project is currently in early development and serves both as a learning pro
 - Dark Mode added
 - Date Format settings added
 - Journal read only screen added
+- added onboarding after install
+- added tutorial and information cards for the features
+- revisited the deleting off entry: changes from swipe to left to long tab and a confirmation dialogue
 
 ---
 

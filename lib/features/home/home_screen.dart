@@ -301,6 +301,42 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _confirmDeleteEntry(dynamic item) {
+    final bool isEmotion = item is EmotionEntry;
+    final String title = isEmotion ? 'Delete Emotion Entry?' : 'Delete Journal Entry?';
+    final String content = isEmotion 
+        ? 'This will permanently remove this emotional moment from your history. This action cannot be undone.'
+        : 'This will permanently remove this journal entry from your history. This action cannot be undone.';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (isEmotion) {
+                await DatabaseService.deleteEntry(item.id);
+              } else {
+                await DatabaseService.deleteJournal(item.id);
+              }
+              if (mounted) {
+                Navigator.pop(context);
+                _refreshData();
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onAddButtonPressed() async {
     if (_selectedDay == null) return;
 
@@ -722,69 +758,53 @@ class _HomeScreenState extends State<HomeScreen> {
                         
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Dismissible(
-                            key: Key(item.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20.0),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.delete, color: Colors.white),
+                          child: Card(
+                            elevation: 0,
+                            margin: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: _showEntryTapHint ? Theme.of(context).colorScheme.primary.withOpacity(0.8) : Theme.of(context).dividerColor.withOpacity(0.1), width: _showEntryTapHint ? 2 : 1),
                             ),
-                            onDismissed: (direction) async {
-                              await DatabaseService.deleteEntry(item.id);
-                              _refreshData();
-                            },
-                            child: Card(
-                              elevation: 0,
-                              margin: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: _showEntryTapHint ? Theme.of(context).colorScheme.primary.withOpacity(0.8) : Theme.of(context).dividerColor.withOpacity(0.1), width: _showEntryTapHint ? 2 : 1),
-                              ),
-                              child: ListTile(
-                                onTap: () => _showRevisionDialog(item),
-                                leading: CircleAvatar(
-                                  backgroundColor: color.withOpacity(opacity),
-                                  child: Text(
-                                    intensity.toString(),
-                                    style: TextStyle(
-                                      color: opacity > 0.6 ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            child: ListTile(
+                              onTap: () => _showRevisionDialog(item),
+                              onLongPress: () => _confirmDeleteEntry(item),
+                              leading: CircleAvatar(
+                                backgroundColor: color.withOpacity(opacity),
+                                child: Text(
+                                  intensity.toString(),
+                                  style: TextStyle(
+                                    color: opacity > 0.6 ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                title: Row(
-                                  children: [
-                                    Text(
-                                      latest['tier1'],
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              title: Row(
+                                children: [
+                                  Text(
+                                    latest['tier1'],
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  if (latest['hasRevisions']) ...[
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
+                                      size: 16,
+                                      color: Theme.of(context).hintColor,
                                     ),
-                                    if (latest['hasRevisions']) ...[
-                                      const SizedBox(width: 8),
-                                      Icon(
-                                        latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
-                                        size: 16,
-                                        color: Theme.of(context).hintColor,
-                                      ),
-                                    ],
-                                    if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
-                                      const SizedBox(width: 8),
-                                      const Icon(Icons.bolt, size: 14, color: Colors.orange),
-                                    ],
                                   ],
-                                ),
-                                subtitle: Text(
-                                  '${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}',
-                                  style: TextStyle(color: Theme.of(context).hintColor),
-                                ),
-                                trailing: Text(
-                                  DateFormat('HH:mm').format(item.timestamp),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
+                                  if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.bolt, size: 14, color: Colors.orange),
+                                  ],
+                                ],
+                              ),
+                              subtitle: Text(
+                                '${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}',
+                                style: TextStyle(color: Theme.of(context).hintColor),
+                              ),
+                              trailing: Text(
+                                DateFormat('HH:mm').format(item.timestamp),
+                                style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
                           ),
@@ -793,62 +813,46 @@ class _HomeScreenState extends State<HomeScreen> {
                         final latest = DatabaseService.getLatestJournalState(item);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Dismissible(
-                            key: Key(item.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20.0),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.delete, color: Colors.white),
+                          child: Card(
+                            elevation: 0,
+                            margin: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
                             ),
-                            onDismissed: (direction) async {
-                              await DatabaseService.deleteJournal(item.id);
-                              _refreshData();
-                            },
-                            child: Card(
-                              elevation: 0,
-                              margin: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                                child: Icon(Icons.book, color: Theme.of(context).colorScheme.onSecondaryContainer, size: 18),
                               ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                                  child: Icon(Icons.book, color: Theme.of(context).colorScheme.onSecondaryContainer, size: 18),
-                                ),
-                                title: Row(
-                                  children: [
-                                    const Text(
-                                      'Journal Entry',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                              title: Row(
+                                children: [
+                                  const Text(
+                                    'Journal Entry',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  if (latest['hasRevisions']) ...[
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
+                                      size: 16,
+                                      color: Theme.of(context).hintColor,
                                     ),
-                                    if (latest['hasRevisions']) ...[
-                                      const SizedBox(width: 8),
-                                      Icon(
-                                        latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
-                                        size: 16,
-                                        color: Theme.of(context).hintColor,
-                                      ),
-                                    ],
                                   ],
-                                ),
-                                subtitle: Text(
-                                  latest['content'],
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: Theme.of(context).hintColor),
-                                ),
-                                trailing: Text(
-                                  DateFormat('HH:mm').format(item.timestamp),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                onTap: () => _showJournalRevisionDialog(item),
+                                ],
                               ),
+                              subtitle: Text(
+                                latest['content'],
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Theme.of(context).hintColor),
+                              ),
+                              trailing: Text(
+                                DateFormat('HH:mm').format(item.timestamp),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              onTap: () => _showJournalRevisionDialog(item),
+                              onLongPress: () => _confirmDeleteEntry(item),
                             ),
                           ),
                         );
@@ -958,7 +962,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(width: 16),
                     const Expanded(
                       child: Text(
-                        "Your entry is just the beginning. Tap it to refine or reflect on this moment later.",
+                        "Your entry is just the beginning. Tap it to refine or reflect, or long-press to delete.",
                         style: TextStyle(fontSize: 13),
                       ),
                     ),
