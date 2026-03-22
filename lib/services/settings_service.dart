@@ -39,6 +39,10 @@ class SettingsService {
   static const String journalNudgeShownKey = 'journal_nudge_shown';
   static const String journalHighlightPendingKey = 'journal_highlight_pending';
   static const String journalIntroShownKey = 'journal_intro_shown';
+  
+  static const String remindersIntroShownKey = 'reminders_intro_shown';
+  static const String colorsIntroShownKey = 'colors_intro_shown';
+  static const String dataIntroShownKey = 'data_intro_shown';
 
   static Future<void> init() async {
     await Hive.openBox(settingsBoxName);
@@ -164,6 +168,36 @@ class SettingsService {
   static Future<void> setJournalIntroShown(bool value) async {
     final box = Hive.box(settingsBoxName);
     await box.put(journalIntroShownKey, value);
+  }
+
+  static bool isRemindersIntroShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(remindersIntroShownKey, defaultValue: false);
+  }
+
+  static Future<void> setRemindersIntroShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(remindersIntroShownKey, value);
+  }
+
+  static bool isColorsIntroShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(colorsIntroShownKey, defaultValue: false);
+  }
+
+  static Future<void> setColorsIntroShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(colorsIntroShownKey, value);
+  }
+
+  static bool isDataIntroShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(dataIntroShownKey, defaultValue: false);
+  }
+
+  static Future<void> setDataIntroShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(dataIntroShownKey, value);
   }
 
   // --- Theme ---

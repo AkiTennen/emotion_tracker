@@ -37,12 +37,162 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(_handleTabSelection);
     _loadReminders();
     _currentBodyType = SettingsService.getBodyType();
     _currentThemeMode = SettingsService.getThemeMode();
     _firstDayOfWeek = SettingsService.getFirstDayOfWeek();
     _currentDateFormat = SettingsService.getDateFormat();
     ReminderService.requestPermissions();
+  }
+
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) return;
+    
+    // Index 1: Reminders, Index 2: Colors, Index 3: Data
+    if (_tabController.index == 1 && !SettingsService.isRemindersIntroShown()) {
+      _showRemindersIntro();
+    } else if (_tabController.index == 2 && !SettingsService.isColorsIntroShown()) {
+      _showColorsIntro();
+    } else if (_tabController.index == 3 && !SettingsService.isDataIntroShown()) {
+      _showDataIntro();
+    }
+  }
+
+  void _showRemindersIntro() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.notifications_active_outlined, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Daily Check-ins'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Consistency is key to spotting patterns.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.notifications_none,
+              title: 'Quiet Mode',
+              description: 'A standard notification. Respects your phone\'s silent settings.',
+            ),
+            _IntroPoint(
+              icon: Icons.alarm,
+              title: 'Alarm Mode',
+              description: 'A persistent chime that bypasses silent mode. Great for ensuring you never miss a reflection.',
+            ),
+            _IntroPoint(
+              icon: Icons.edit_notifications_outlined,
+              title: 'Personalized Prompts',
+              description: 'Change the message to whatever helps you pause and check in with yourself.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SettingsService.setRemindersIntroShown(true);
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showColorsIntro() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.palette_outlined, color: Colors.purple),
+            SizedBox(width: 12),
+            Text('Your Personal Palette'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Emotions are personal, and so are their colors.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.color_lens_outlined,
+              title: 'Visual Meaning',
+              description: 'Changing a color here updates your entire history. Pick colors that resonate with how you feel those emotions.',
+            ),
+            _IntroPoint(
+              icon: Icons.calendar_view_month_outlined,
+              title: 'Calendar Impact',
+              description: 'Your "Emotion Pie Charts" on the calendar will immediately reflect these new colors.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SettingsService.setColorsIntroShown(true);
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDataIntro() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.storage_outlined, color: Colors.blue),
+            SizedBox(width: 12),
+            Text('Data & Privacy'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('You own your data. Always.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.download_outlined,
+              title: 'Backup Data',
+              description: 'Creates a file in your "Downloads" folder. This contains your entire emotional history.',
+            ),
+            _IntroPoint(
+              icon: Icons.upload_file_outlined,
+              title: 'Restore Data',
+              description: 'Use your backup file to restore your journey on a new device or after a re-install.',
+            ),
+            _IntroPoint(
+              icon: Icons.security,
+              title: 'Local Only',
+              description: 'We never upload your data to a cloud. Your backup file is the only way to move your data.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SettingsService.setDataIntroShown(true);
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('I understand'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _loadReminders() {
@@ -58,6 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     for (var controller in _controllers) {
       controller.dispose();
@@ -640,6 +791,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                   await SettingsService.setBodyMapIntroShown(false);
                   await SettingsService.setFirstEntryHintShown(false);
                   await SettingsService.setTier2IntroShown(false);
+                  await SettingsService.setRemindersIntroShown(false);
+                  await SettingsService.setColorsIntroShown(false);
+                  await SettingsService.setDataIntroShown(false);
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tutorials reset.')));
                 },
               ),
@@ -670,6 +824,38 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             Tab(text: 'Data', icon: Icon(Icons.storage_outlined)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _IntroPoint extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _IntroPoint({required this.icon, required this.title, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(description, style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
