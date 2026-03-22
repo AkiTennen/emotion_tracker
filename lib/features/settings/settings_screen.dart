@@ -6,6 +6,7 @@ import '../../services/settings_service.dart';
 import '../../services/reminder_service.dart';
 import '../../services/backup_service.dart';
 import '../../models/emotion_data.dart';
+import '../../models/emotion_entry_revision.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_handleTabSelection);
     _loadReminders();
     _currentBodyType = SettingsService.getBodyType();
@@ -58,6 +59,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
       _showDataIntro();
     }
   }
+
+  // --- INTRO DIALOGS ---
 
   void _showRemindersIntro() {
     showDialog(
@@ -191,6 +194,244 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             child: const Text('I understand'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showTier2Guide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.amber),
+            SizedBox(width: 12),
+            Text('Exploring Detail'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Secondary emotions add the first layer of depth.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.alt_route,
+              title: 'It\'s Optional',
+              description: 'Not every feeling needs a sub-category. Use it only when it helps clarify your state.',
+            ),
+            _IntroPoint(
+              icon: Icons.edit_note,
+              title: 'Custom Words',
+              description: 'You can add your own words to any primary category. We\'ll remember them for next time.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showTier3Guide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.diamond_outlined, color: Colors.cyan),
+            SizedBox(width: 12),
+            Text('Nuance & Depth'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tertiary emotions are the final layer of detail.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.filter_center_focus,
+              title: 'Maximum Nuance',
+              description: 'These allow you to be incredibly specific about the "shade" of your emotion.',
+            ),
+            _IntroPoint(
+              icon: Icons.analytics_outlined,
+              title: 'Better Patterns',
+              description: 'The more specific you are, the better you can see the subtle differences in your moods over time.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showIntensityGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.speed, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Tracking Intensity'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('How "loud" is this feeling?', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.linear_scale,
+              title: 'Simple Scale (0-3)',
+              description: '0 is very mild, 3 is overwhelming. Most emotions fall somewhere in between.',
+            ),
+            _IntroPoint(
+              icon: Icons.palette_outlined,
+              title: 'Visual Impact',
+              description: 'High intensity emotions show up with stronger, brighter colors on your calendar.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showBodyMapGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.accessibility_new, color: Colors.green),
+            SizedBox(width: 12),
+            Text('Listening to your body'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Emotions aren\'t just in our heads.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.gesture,
+              title: 'Visualize Feelings',
+              description: 'Mark where you feel an emotion—like "butterflies" in the stomach or a "tight" chest.',
+            ),
+            _IntroPoint(
+              icon: Icons.front_hand,
+              title: 'Front & Back',
+              description: 'Use the two views to be as accurate as possible about where your body is reacting.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showTriggerGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.bolt, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Exploring Triggers'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('What sparked this feeling?', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.hub_outlined,
+              title: 'Identify Influences',
+              description: 'Noting the person, place, or event that triggered an emotion helps you spot causing factors.',
+            ),
+            _IntroPoint(
+              icon: Icons.visibility_outlined,
+              title: 'Visual Clarity',
+              description: 'Entries with triggers stand out on your calendar with an orange ring.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showRevisionGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_stories_outlined, color: Colors.blueGrey),
+            SizedBox(width: 12),
+            Text('Refining your story'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Your emotions change as you gain perspective.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.edit_note,
+              title: 'Correction',
+              description: 'Use this for input errors like typos or the wrong emotion. It\'s for fixing the past.',
+            ),
+            _IntroPoint(
+              icon: Icons.psychology,
+              title: 'Reflection',
+              description: 'Use this for emotional growth. Look back with new eyes and add a new layer without erasing the original snapshot.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
+      ),
+    );
+  }
+
+  void _showJournalGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_stories, color: Colors.teal),
+            SizedBox(width: 12),
+            Text('Journaling Guide'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('A space for long-form thoughts.', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            _IntroPoint(
+              icon: Icons.history_edu,
+              title: 'A Living Record',
+              description: 'You can "Add to" a journal entry later to preserve your initial thoughts while letting your story grow.',
+            ),
+            _IntroPoint(
+              icon: Icons.security_outlined,
+              title: 'Total Privacy',
+              description: 'Your words are encrypted locally and never leave this device. No cloud, no tracking.',
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it'))],
       ),
     );
   }
@@ -390,17 +631,31 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, {VoidCallback? onHelp}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
-          letterSpacing: 1.1,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+              letterSpacing: 1.1,
+            ),
+          ),
+          if (onHelp != null)
+            IconButton(
+              icon: const Icon(Icons.help_outline, size: 16),
+              onPressed: onHelp,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Show Help',
+            ),
+        ],
       ),
     );
   }
@@ -742,10 +997,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             ],
           ),
 
-          // TAB 4: Data & Advanced
+          // TAB 4: Data
           ListView(
             children: [
-              _buildSectionHeader('DATA MANAGEMENT'),
+              _buildSectionHeader('DATA MANAGEMENT', onHelp: _showDataIntro),
               ListTile(
                 leading: const Icon(Icons.upload_file),
                 title: const Text('Backup Data'),
@@ -768,10 +1023,44 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 },
               ),
               const Divider(),
-              _buildSectionHeader('ADVANCED & TUTORIALS'),
+              _buildSectionHeader('ADVANCED'),
+              ListTile(
+                leading: const Icon(Icons.restart_alt),
+                title: const Text('Reset All Tutorial Flags'),
+                subtitle: const Text('Force all feature guides to pop up again automatically.'),
+                onTap: () async {
+                  await SettingsService.setBodyMapIntroShown(false);
+                  await SettingsService.setFirstEntryHintShown(false);
+                  await SettingsService.setTier2IntroShown(false);
+                  await SettingsService.setTier3IntroShown(false);
+                  await SettingsService.setIntensityIntroShown(false);
+                  await SettingsService.setTriggerIntroShown(false);
+                  await SettingsService.setRevisionTypesHintShown(false);
+                  await SettingsService.setRemindersIntroShown(false);
+                  await SettingsService.setColorsIntroShown(false);
+                  await SettingsService.setDataIntroShown(false);
+                  await SettingsService.setJournalIntroShown(false);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('All tutorial flags reset.')));
+                },
+              ),
+              const Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'Privacy Note: Your emotional data is yours. It is stored locally and never leaves your device unless you export a backup.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+          ),
+
+          // TAB 5: Guides
+          ListView(
+            children: [
+              _buildSectionHeader('APP FOUNDATIONS'),
               ListTile(
                 leading: const Icon(Icons.help_outline),
-                title: const Text('Show Welcome Onboarding'),
+                title: const Text('Welcome Onboarding'),
                 subtitle: const Text('Replay the initial app introduction.'),
                 onTap: () {
                   Navigator.of(context).push(
@@ -784,26 +1073,61 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.restart_alt),
-                title: const Text('Reset In-App Tutorials'),
-                subtitle: const Text('Show the body map and feature guides again.'),
-                onTap: () async {
-                  await SettingsService.setBodyMapIntroShown(false);
-                  await SettingsService.setFirstEntryHintShown(false);
-                  await SettingsService.setTier2IntroShown(false);
-                  await SettingsService.setRemindersIntroShown(false);
-                  await SettingsService.setColorsIntroShown(false);
-                  await SettingsService.setDataIntroShown(false);
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tutorials reset.')));
-                },
+                leading: const Icon(Icons.auto_stories_outlined),
+                title: const Text('Revision Philosophy'),
+                subtitle: const Text('Correction vs. Reflection.'),
+                onTap: _showRevisionGuide,
               ),
-              const Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'Privacy Note: Your emotional data is yours. It is stored locally and never leaves your device unless you export a backup.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
-                ),
+              const Divider(),
+              _buildSectionHeader('EMOTION LOGGING'),
+              ListTile(
+                leading: const Icon(Icons.auto_awesome),
+                title: const Text('Secondary Emotions'),
+                onTap: _showTier2Guide,
+              ),
+              ListTile(
+                leading: const Icon(Icons.diamond_outlined),
+                title: const Text('Tertiary Emotions'),
+                onTap: _showTier3Guide,
+              ),
+              ListTile(
+                leading: const Icon(Icons.speed),
+                title: const Text('Intensity Tracking'),
+                onTap: _showIntensityGuide,
+              ),
+              const Divider(),
+              _buildSectionHeader('REFLECTION TOOLS'),
+              ListTile(
+                leading: const Icon(Icons.accessibility_new),
+                title: const Text('Body Mapping'),
+                onTap: _showBodyMapGuide,
+              ),
+              ListTile(
+                leading: const Icon(Icons.bolt),
+                title: const Text('Exploring Triggers'),
+                onTap: _showTriggerGuide,
+              ),
+              ListTile(
+                leading: const Icon(Icons.auto_stories),
+                title: const Text('Journaling Space'),
+                onTap: _showJournalGuide,
+              ),
+              const Divider(),
+              _buildSectionHeader('CONFIGURATION'),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('Daily Check-ins'),
+                onTap: _showRemindersIntro,
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Personalized Colors'),
+                onTap: _showColorsIntro,
+              ),
+              ListTile(
+                leading: const Icon(Icons.storage_outlined),
+                title: const Text('Data & Privacy'),
+                onTap: _showDataIntro,
               ),
             ],
           ),
@@ -822,6 +1146,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             Tab(text: 'Reminders', icon: Icon(Icons.notifications_outlined)),
             Tab(text: 'Colors', icon: Icon(Icons.palette_outlined)),
             Tab(text: 'Data', icon: Icon(Icons.storage_outlined)),
+            Tab(text: 'Guides', icon: Icon(Icons.help_center_outlined)),
           ],
         ),
       ),
