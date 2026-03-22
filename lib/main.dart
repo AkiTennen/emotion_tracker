@@ -3,6 +3,7 @@ import 'services/database_service.dart';
 import 'services/settings_service.dart';
 import 'services/reminder_service.dart';
 import 'features/home/home_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
 
 void main() async {
   // Ensure Flutter is initialized before calling any services
@@ -28,16 +29,24 @@ class EmotionTrackerApp extends StatefulWidget {
 
 class _EmotionTrackerAppState extends State<EmotionTrackerApp> {
   ThemeMode _themeMode = ThemeMode.system;
+  bool _showOnboarding = false;
 
   @override
   void initState() {
     super.initState();
     _themeMode = SettingsService.getThemeMode();
+    _showOnboarding = !SettingsService.isOnboardingShown();
   }
 
   void updateThemeMode() {
     setState(() {
       _themeMode = SettingsService.getThemeMode();
+    });
+  }
+
+  void refreshOnboardingState() {
+    setState(() {
+      _showOnboarding = !SettingsService.isOnboardingShown();
     });
   }
 
@@ -68,7 +77,15 @@ class _EmotionTrackerAppState extends State<EmotionTrackerApp> {
           elevation: 0,
         ),
       ),
-      home: const HomeScreen(),
+      home: _showOnboarding
+          ? OnboardingScreen(
+              onFinish: () {
+                setState(() {
+                  _showOnboarding = false;
+                });
+              },
+            )
+          : const HomeScreen(),
     );
   }
 }

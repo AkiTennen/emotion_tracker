@@ -6,6 +6,7 @@ import '../../services/settings_service.dart';
 import '../../services/reminder_service.dart';
 import '../../services/backup_service.dart';
 import '../../models/emotion_data.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback onThemeChanged;
@@ -613,13 +614,29 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 },
               ),
               const Divider(),
-              _buildSectionHeader('ADVANCED'),
+              _buildSectionHeader('ADVANCED & TUTORIALS'),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Show Welcome Onboarding'),
+                subtitle: const Text('Replay the initial app introduction.'),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => OnboardingScreen(
+                        onFinish: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  );
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.restart_alt),
-                title: const Text('Reset Tutorials'),
-                subtitle: const Text('Show the body map guide again.'),
+                title: const Text('Reset In-App Tutorials'),
+                subtitle: const Text('Show the body map and feature guides again.'),
                 onTap: () async {
                   await SettingsService.setBodyMapIntroShown(false);
+                  await SettingsService.setFirstEntryHintShown(false);
+                  await SettingsService.setTier2IntroShown(false);
                   if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tutorials reset.')));
                 },
               ),

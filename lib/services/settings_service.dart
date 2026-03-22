@@ -27,9 +27,88 @@ class SettingsService {
   static const String themeModeKey = 'theme_mode';
   static const String firstDayOfWeekKey = 'first_day_of_week';
   static const String dateFormatKey = 'date_format';
+  static const String onboardingShownKey = 'onboarding_shown';
+  static const String firstEntryHintShownKey = 'first_entry_hint_shown';
+  static const String tier2IntroShownKey = 'tier_2_intro_shown';
+  static const String tier3IntroShownKey = 'tier_3_intro_shown';
+  static const String entryTapHintShownKey = 'entry_tap_hint_shown';
+  static const String revisionTypesHintShownKey = 'revision_types_hint_shown';
+  static const String timelineHintShownKey = 'timeline_hint_shown';
 
   static Future<void> init() async {
     await Hive.openBox(settingsBoxName);
+  }
+
+  // --- Onboarding & Tutorials ---
+
+  static bool isOnboardingShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(onboardingShownKey, defaultValue: false);
+  }
+
+  static Future<void> setOnboardingShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(onboardingShownKey, value);
+  }
+
+  static bool isFirstEntryHintShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(firstEntryHintShownKey, defaultValue: false);
+  }
+
+  static Future<void> setFirstEntryHintShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(firstEntryHintShownKey, value);
+  }
+
+  static bool isTier2IntroShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(tier2IntroShownKey, defaultValue: false);
+  }
+
+  static Future<void> setTier2IntroShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(tier2IntroShownKey, value);
+  }
+
+  static bool isTier3IntroShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(tier3IntroShownKey, defaultValue: false);
+  }
+
+  static Future<void> setTier3IntroShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(tier3IntroShownKey, value);
+  }
+
+  static bool isEntryTapHintShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(entryTapHintShownKey, defaultValue: false);
+  }
+
+  static Future<void> setEntryTapHintShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(entryTapHintShownKey, value);
+  }
+
+  static bool isRevisionTypesHintShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(revisionTypesHintShownKey, defaultValue: false);
+  }
+
+  static Future<void> setRevisionTypesHintShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(revisionTypesHintShownKey, value);
+  }
+
+  static bool isTimelineHintShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(timelineHintShownKey, defaultValue: false);
+  }
+
+  static Future<void> setTimelineHintShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(timelineHintShownKey, value);
   }
 
   // --- Theme ---

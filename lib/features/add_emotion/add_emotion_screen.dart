@@ -38,6 +38,10 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   bool _isIntensityUnlocked = false;
   bool _isBodyMapUnlocked = false;
   bool _isTriggerUnlocked = false;
+  
+  bool _showStep1Hint = false;
+  bool _showTier2Hint = false;
+  bool _showTier3Hint = false;
 
   final TextEditingController _customController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
@@ -47,6 +51,8 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   void initState() {
     super.initState();
     _checkUnlocks();
+    _showStep1Hint = !SettingsService.isFirstEntryHintShown() && widget.existingEntry == null;
+    
     if (widget.existingEntry != null) {
       _selectedTier1 = widget.existingEntry!.tier1Emotion;
       _selectedTier2 = widget.existingEntry!.tier2Emotion;
@@ -73,7 +79,107 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       _isIntensityUnlocked = SettingsService.isIntensityUnlocked(); 
       _isBodyMapUnlocked = SettingsService.isBodyMapUnlocked();
       _isTriggerUnlocked = SettingsService.isTriggerPromptsUnlocked();
+      
+      _showTier2Hint = _isTier2Unlocked && !SettingsService.isTier2IntroShown() && widget.existingEntry == null;
+      _showTier3Hint = _isTier3Unlocked && !SettingsService.isTier3IntroShown() && widget.existingEntry == null;
     });
+  }
+
+  void _showTier2Guide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_awesome, color: Colors.amber),
+            SizedBox(width: 12),
+            Text('Exploring Detail'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You\'ve unlocked more detail! Here is how to use it:', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _GuidePoint(
+                icon: Icons.alt_route,
+                title: 'It\'s Optional',
+                description: 'Not every feeling needs a sub-category. If the primary emotion says it all, feel free to just save it there.',
+              ),
+              _GuidePoint(
+                icon: Icons.edit_note,
+                title: 'Custom Words',
+                description: 'Can\'t find the right word? Tap "Custom" to add your own. We\'ll remember them for next time.',
+              ),
+              _GuidePoint(
+                icon: Icons.gesture,
+                title: 'Managing Words',
+                description: 'To "forget" a custom word, just long-press its chip to remove it from your list.',
+              ),
+              _GuidePoint(
+                icon: Icons.psychology,
+                title: 'Staying Consistent',
+                description: 'If you use a word that already exists elsewhere, we\'ll let you know. Keeping your emotions consistent helps your patterns stay clear.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTier3Guide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.diamond_outlined, color: Colors.cyan),
+            SizedBox(width: 12),
+            Text('Nuance & Depth'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You\'ve reached the final layer of emotional depth.', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _GuidePoint(
+                icon: Icons.filter_center_focus,
+                title: 'Maximum Nuance',
+                description: 'Tertiary emotions allow you to be incredibly specific. Like the layers before, this is entirely optional.',
+              ),
+              _GuidePoint(
+                icon: Icons.add_circle_outline,
+                title: 'Even More Customization',
+                description: 'You can add custom words here too. They belong specifically to the Primary category you chose at the start.',
+              ),
+              _GuidePoint(
+                icon: Icons.analytics_outlined,
+                title: 'Better Patterns',
+                description: 'The more specific you are, the better you\'ll be able to see the subtle differences in your moods over time.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showCustomDialog(int tier) {
@@ -138,11 +244,11 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('A familiar feeling?'),
+            title: const Text('We\'ve met this feeling before'),
             content: Text(
               match.isCustom 
-                ? 'You have used "$text" before as a part of the "${match.tier1}" category.\n\nWould you like to use that existing path?'
-                : 'It looks like "$text" is already a built-in part of the "${match.tier1}" category.\n\nWould you like to use the existing path, or keep your own word?'
+                ? 'You have used "$text" before as a part of the "${match.tier1}" category.\n\nTo keep your patterns clear, would you like to use that existing path?'
+                : 'It looks like "$text" is already a built-in part of the "${match.tier1}" category.\n\nWould you like to use the existing path, or keep your own word here?'
             ),
             actions: [
               TextButton(
@@ -154,7 +260,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                   });
                   Navigator.pop(context);
                 },
-                child: const Text('Use Existing'),
+                child: const Text('Use Existing Path'),
               ),
               TextButton(
                 onPressed: () async {
@@ -252,6 +358,18 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         trigger: _triggerText,
       );
       await DatabaseService.saveEntry(entry);
+      
+      if (!SettingsService.isFirstEntryHintShown()) {
+        await SettingsService.setFirstEntryHintShown(true);
+      }
+      
+      if (_showTier2Hint || _selectedTier2 != null) {
+        await SettingsService.setTier2IntroShown(true);
+      }
+
+      if (_showTier3Hint || _selectedTier3 != null) {
+        await SettingsService.setTier3IntroShown(true);
+      }
     }
     
     _updateProgressionThresholds();
@@ -340,6 +458,11 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_showStep1Hint)
+              _HintCard(
+                text: 'Every emotion starts here. Pick the one that fits best in this moment.',
+                onClose: () => setState(() => _showStep1Hint = false),
+              ),
             Text('Step 1: Primary Emotion', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Wrap(
@@ -356,6 +479,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                       _selectedTier1 = selected ? e : null;
                       _selectedTier2 = null;
                       _selectedTier3 = null;
+                      _showStep1Hint = false; 
                     });
                   },
                 );
@@ -365,6 +489,15 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
             if (_selectedTier1 != null) ...[
               if (_isTier2Unlocked) ...[
                 const Divider(height: 32),
+                if (_showTier2Hint)
+                  _HintCard(
+                    text: 'You\'ve unlocked more detail! You can now choose a secondary emotion, or skip this if it doesn\'t feel right.',
+                    onClose: () async {
+                      await SettingsService.setTier2IntroShown(true);
+                      setState(() => _showTier2Hint = false);
+                    },
+                    onInfo: _showTier2Guide,
+                  ),
                 Text('Step 2: Secondary Emotion', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Wrap(
@@ -409,6 +542,15 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
               if (_isTier3Unlocked) ...[
                 const Divider(height: 32),
+                if (_showTier3Hint)
+                  _HintCard(
+                    text: 'Nuance & Depth unlocked! Tertiary emotions help you be even more specific with how you feel.',
+                    onClose: () async {
+                      await SettingsService.setTier3IntroShown(true);
+                      setState(() => _showTier3Hint = false);
+                    },
+                    onInfo: _showTier3Guide,
+                  ),
                 Text('Step 3: Tertiary Emotion', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Wrap(
@@ -564,6 +706,81 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HintCard extends StatelessWidget {
+  final String text;
+  final VoidCallback onClose;
+  final VoidCallback? onInfo;
+
+  const _HintCard({required this.text, required this.onClose, this.onInfo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lightbulb_outline, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          if (onInfo != null)
+            IconButton(
+              icon: const Icon(Icons.help_outline, size: 18),
+              onPressed: onInfo,
+              tooltip: 'Learn more',
+            ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: onClose,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuidePoint extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _GuidePoint({required this.icon, required this.title, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(description, style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

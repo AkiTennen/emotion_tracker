@@ -30,6 +30,8 @@ class _HomeScreenState extends State<HomeScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.week;
   List<EmotionEntry> _allEntries = [];
   List<JournalEntry> _allJournals = [];
+  bool _showFirstEntryHint = false;
+  bool _showEntryTapHint = false;
 
   @override
   void initState() {
@@ -42,6 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _allEntries = DatabaseService.getAllEntries();
       _allJournals = DatabaseService.getAllJournals();
+      _showFirstEntryHint = !SettingsService.isFirstEntryHintShown() && _allEntries.isEmpty;
+      _showEntryTapHint = !SettingsService.isEntryTapHintShown() && _allEntries.length == 1 && !_showFirstEntryHint;
     });
   }
 
@@ -74,12 +78,66 @@ class _HomeScreenState extends State<HomeScreen> {
       trigger: latest['trigger'],
     );
 
+    if (!SettingsService.isEntryTapHintShown()) {
+      SettingsService.setEntryTapHintShown(true);
+      setState(() => _showEntryTapHint = false);
+    }
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (!SettingsService.isRevisionTypesHintShown())
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                  border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.auto_stories_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('Refining your story', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _RevisionInfoRow(
+                      icon: Icons.edit_note,
+                      title: 'Correction ("I made a mistake")',
+                      description: 'Use this for input errors like typos or the wrong emotion. It\'s for fixing the past.',
+                    ),
+                    _RevisionInfoRow(
+                      icon: Icons.psychology,
+                      title: 'Reflection ("I see this differently")',
+                      description: 'Use this for emotional growth. Look back with new eyes and add a new layer without erasing the original.',
+                    ),
+                    _RevisionInfoRow(
+                      icon: Icons.history,
+                      title: 'Preservation (History)',
+                      description: 'Your safety net. Nothing is ever overwritten; we just add new chapters to this moment\'s story.',
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: () async {
+                          await SettingsService.setRevisionTypesHintShown(true);
+                          if (mounted) Navigator.pop(context);
+                          _showRevisionDialog(entry);
+                        },
+                        child: const Text('Got it'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ListTile(
               leading: const Icon(Icons.history),
               title: const Text('View history'),
@@ -264,6 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _openAddEmotionScreen() async {
     final bool isToday = isSameDay(_selectedDay, DateTime.now());
+    final bool isFirstEver = _allEntries.isEmpty && !SettingsService.isFirstEntryHintShown();
 
     if (!isToday) {
       final bool? proceed = await showDialog<bool>(
@@ -298,6 +357,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     _refreshData();
+    
+    if (isFirstEver && _allEntries.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Well done! You\'ve taken the first step in your journey.'),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _openJournalEditor() async {
@@ -316,6 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String label,
     required Color color,
     required VoidCallback onTap,
+    bool highlight = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -323,9 +393,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withOpacity(highlight ? 0.2 : 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withOpacity(highlight ? 0.8 : 0.2), width: highlight ? 2 : 1),
+          boxShadow: highlight ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, spreadRadius: 2)] : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -425,7 +496,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final selectedDayEntries = _selectedDay != null ? _getEntriesForDay(_selectedDay!) : <EmotionEntry>[];
     final selectedDayJournals = _selectedDay != null ? _getJournalsForDay(_selectedDay!) : <JournalEntry>[];
     
-    // Combined list for display
     final List<dynamic> combinedItems = [...selectedDayEntries, ...selectedDayJournals];
     combinedItems.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
@@ -455,312 +525,418 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
         children: [
-          // "Right Now" Section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getGreeting(),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isTodaySelected 
-                    ? "How are you feeling right now?" 
-                    : "Reviewing ${DateFormat(dateFormatString).format(_selectedDay!)}",
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).hintColor,
-                      ),
-                ),
-                const SizedBox(height: 20),
-                Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _buildQuickActionCard(
-                        context,
-                        icon: Icons.add_reaction_outlined,
-                        label: "Log Emotion",
-                        color: Theme.of(context).colorScheme.primary,
-                        onTap: () => _openAddEmotionScreen(),
-                      ),
+                    Text(
+                      _getGreeting(),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
-                    if (SettingsService.isJournalEnabled()) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildQuickActionCard(
-                          context,
-                          icon: Icons.edit_note_outlined,
-                          label: "Write Journal",
-                          color: Theme.of(context).colorScheme.secondary,
-                          onTap: () => _openJournalEditor(),
+                    const SizedBox(height: 4),
+                    Text(
+                      isTodaySelected 
+                        ? "How are you feeling right now?" 
+                        : "Reviewing ${DateFormat(dateFormatString).format(_selectedDay!)}",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).hintColor,
+                          ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickActionCard(
+                            context,
+                            icon: Icons.add_reaction_outlined,
+                            label: "Log Emotion",
+                            color: Theme.of(context).colorScheme.primary,
+                            onTap: () => _openAddEmotionScreen(),
+                            highlight: _showFirstEntryHint,
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Timeline Header (Month Toggle)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Calendar",
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).hintColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _calendarFormat = _calendarFormat == CalendarFormat.week
-                          ? CalendarFormat.month
-                          : CalendarFormat.week;
-                    });
-                  },
-                  icon: Icon(
-                    _calendarFormat == CalendarFormat.week
-                        ? Icons.calendar_month_outlined
-                        : Icons.keyboard_arrow_up,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _calendarFormat == CalendarFormat.week ? "Show Month" : "Show Week",
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          TableCalendar(
-            firstDay: DateTime.utc(DateTime.now().year - 2, 1, 1),
-            lastDay: DateTime.now(),
-            focusedDay: _focusedDay,
-            calendarFormat: _calendarFormat,
-            startingDayOfWeek: firstDayOfWeekValue == 1 ? StartingDayOfWeek.monday : StartingDayOfWeek.sunday,
-            onFormatChanged: (format) {
-              setState(() {
-                _calendarFormat = format;
-              });
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-            },
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            headerStyle: HeaderStyle(
-              titleCentered: true,
-              formatButtonVisible: false,
-              headerPadding: const EdgeInsets.symmetric(vertical: 4.0),
-              titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              leftChevronIcon: Icon(Icons.chevron_left, color: Theme.of(context).hintColor, size: 20),
-              rightChevronIcon: Icon(Icons.chevron_right, color: Theme.of(context).hintColor, size: 20),
-            ),
-            calendarBuilders: CalendarBuilders(
-              defaultBuilder: (context, day, focusedDay) => _buildDayCell(day),
-              todayBuilder: (context, day, focusedDay) => _buildDayCell(day, isToday: true),
-              selectedBuilder: (context, day, focusedDay) => _buildDayCell(day, isSelected: true),
-              outsideBuilder: (context, day, focusedDay) => _buildDayCell(day, isOutside: true),
-            ),
-            daysOfWeekHeight: 20,
-            rowHeight: 48,
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Timeline Detail Title
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
-            child: Text(
-              isTodaySelected ? "Today so far" : "Your journey on ${DateFormat(dateFormatString).format(_selectedDay!)}",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          if (_selectedDay != null)
-            Expanded(
-              child: combinedItems.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.wb_sunny_outlined, size: 48, color: Theme.of(context).disabledColor.withOpacity(0.2)),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No entries yet.',
-                            style: TextStyle(color: Theme.of(context).disabledColor, fontSize: 16),
+                        if (SettingsService.isJournalEnabled()) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildQuickActionCard(
+                              context,
+                              icon: Icons.edit_note_outlined,
+                              label: "Write Journal",
+                              color: Theme.of(context).colorScheme.secondary,
+                              onTap: () => _openJournalEditor(),
+                            ),
                           ),
                         ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Calendar",
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            color: Theme.of(context).hintColor,
+                            fontWeight: FontWeight.bold,
                       ),
-                    )
-                  : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                itemCount: combinedItems.length,
-                itemBuilder: (context, index) {
-                  final item = combinedItems[index];
-                  
-                  if (item is EmotionEntry) {
-                    final latest = DatabaseService.getLatestState(item);
-                    final color = EmotionData.getColor(latest['tier1']);
-                    final intensity = latest['intensity'] as int;
-                    final double opacity = 0.25 + (intensity * 0.25);
-                    
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Dismissible(
-                        key: Key(item.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20.0),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _calendarFormat = _calendarFormat == CalendarFormat.week
+                              ? CalendarFormat.month
+                              : CalendarFormat.week;
+                        });
+                      },
+                      icon: Icon(
+                        _calendarFormat == CalendarFormat.week
+                            ? Icons.calendar_month_outlined
+                            : Icons.keyboard_arrow_up,
+                        size: 16,
+                      ),
+                      label: Text(
+                        _calendarFormat == CalendarFormat.week ? "Show Month" : "Show Week",
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              TableCalendar(
+                firstDay: DateTime.utc(DateTime.now().year - 2, 1, 1),
+                lastDay: DateTime.now(),
+                focusedDay: _focusedDay,
+                calendarFormat: _calendarFormat,
+                startingDayOfWeek: firstDayOfWeekValue == 1 ? StartingDayOfWeek.monday : StartingDayOfWeek.sunday,
+                onFormatChanged: (format) {
+                  setState(() {
+                    _calendarFormat = format;
+                  });
+                },
+                onDaySelected: (selectedDay, focusedDay) {
+                  setState(() {
+                    _selectedDay = selectedDay;
+                    _focusedDay = focusedDay;
+                  });
+                },
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                headerStyle: HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  headerPadding: const EdgeInsets.symmetric(vertical: 4.0),
+                  titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  leftChevronIcon: Icon(Icons.chevron_left, color: Theme.of(context).hintColor, size: 20),
+                  rightChevronIcon: Icon(Icons.chevron_right, color: Theme.of(context).hintColor, size: 20),
+                ),
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) => _buildDayCell(day),
+                  todayBuilder: (context, day, focusedDay) => _buildDayCell(day, isToday: true),
+                  selectedBuilder: (context, day, focusedDay) => _buildDayCell(day, isSelected: true),
+                  outsideBuilder: (context, day, focusedDay) => _buildDayCell(day, isOutside: true),
+                ),
+                daysOfWeekHeight: 20,
+                rowHeight: 48,
+              ),
+              
+              const SizedBox(height: 24),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Text(
+                  isTodaySelected ? "Today so far" : "Your journey on ${DateFormat(dateFormatString).format(_selectedDay!)}",
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              if (_selectedDay != null)
+                Expanded(
+                  child: combinedItems.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.wb_sunny_outlined, size: 48, color: Theme.of(context).disabledColor.withOpacity(0.2)),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No entries yet.',
+                                style: TextStyle(color: Theme.of(context).disabledColor, fontSize: 16),
+                              ),
+                            ],
                           ),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (direction) async {
-                          await DatabaseService.deleteEntry(item.id);
-                          _refreshData();
-                        },
-                        child: Card(
-                          elevation: 0,
-                          margin: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-                          ),
-                          child: ListTile(
-                            onTap: () => _showRevisionDialog(item),
-                            leading: CircleAvatar(
-                              backgroundColor: color.withOpacity(opacity),
-                              child: Text(
-                                intensity.toString(),
-                                style: TextStyle(
-                                  color: opacity > 0.6 ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
-                                  fontWeight: FontWeight.bold,
+                        )
+                      : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                    itemCount: combinedItems.length,
+                    itemBuilder: (context, index) {
+                      final item = combinedItems[index];
+                      
+                      if (item is EmotionEntry) {
+                        final latest = DatabaseService.getLatestState(item);
+                        final color = EmotionData.getColor(latest['tier1']);
+                        final intensity = latest['intensity'] as int;
+                        final double opacity = 0.25 + (intensity * 0.25);
+                        
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Dismissible(
+                            key: Key(item.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20.0),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            onDismissed: (direction) async {
+                              await DatabaseService.deleteEntry(item.id);
+                              _refreshData();
+                            },
+                            child: Card(
+                              elevation: 0,
+                              margin: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: _showEntryTapHint ? Theme.of(context).colorScheme.primary.withOpacity(0.8) : Theme.of(context).dividerColor.withOpacity(0.1), width: _showEntryTapHint ? 2 : 1),
+                              ),
+                              child: ListTile(
+                                onTap: () => _showRevisionDialog(item),
+                                leading: CircleAvatar(
+                                  backgroundColor: color.withOpacity(opacity),
+                                  child: Text(
+                                    intensity.toString(),
+                                    style: TextStyle(
+                                      color: opacity > 0.6 ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      latest['tier1'],
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    if (latest['hasRevisions']) ...[
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
+                                        size: 16,
+                                        color: Theme.of(context).hintColor,
+                                      ),
+                                    ],
+                                    if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      const Icon(Icons.bolt, size: 14, color: Colors.orange),
+                                    ],
+                                  ],
+                                ),
+                                subtitle: Text(
+                                  '${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}',
+                                  style: TextStyle(color: Theme.of(context).hintColor),
+                                ),
+                                trailing: Text(
+                                  DateFormat('HH:mm').format(item.timestamp),
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ),
                             ),
-                            title: Row(
-                              children: [
-                                Text(
-                                  latest['tier1'],
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      } else if (item is JournalEntry) {
+                        final latest = DatabaseService.getLatestJournalState(item);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Dismissible(
+                            key: Key(item.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20.0),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            onDismissed: (direction) async {
+                              await DatabaseService.deleteJournal(item.id);
+                              _refreshData();
+                            },
+                            child: Card(
+                              elevation: 0,
+                              margin: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+                                  child: Icon(Icons.book, color: Theme.of(context).colorScheme.onSecondaryContainer, size: 18),
                                 ),
-                                if (latest['hasRevisions']) ...[
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    latest['latestType'] == RevisionType.correction ? Icons.edit_note : Icons.psychology,
-                                    size: 16,
-                                    color: Theme.of(context).hintColor,
-                                  ),
-                                ],
-                                if (latest['trigger'] != null && (latest['trigger'] as String).isNotEmpty) ...[
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.bolt, size: 14, color: Colors.orange),
-                                ],
-                              ],
-                            ),
-                            subtitle: Text(
-                              '${latest['tier2'] ?? ""} ${latest['tier3'] != null ? "• ${latest['tier3']}" : ""}',
-                              style: TextStyle(color: Theme.of(context).hintColor),
-                            ),
-                            trailing: Text(
-                              DateFormat('HH:mm').format(item.timestamp),
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  } else if (item is JournalEntry) {
-                    final latest = DatabaseService.getLatestJournalState(item);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Dismissible(
-                        key: Key(item.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20.0),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.delete, color: Colors.white),
-                        ),
-                        onDismissed: (direction) async {
-                          await DatabaseService.deleteJournal(item.id);
-                          _refreshData();
-                        },
-                        child: Card(
-                          elevation: 0,
-                          margin: EdgeInsets.zero,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-                              child: Icon(Icons.book, color: Theme.of(context).colorScheme.onSecondaryContainer, size: 18),
-                            ),
-                            title: Row(
-                              children: [
-                                const Text(
-                                  'Journal Entry',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                title: Row(
+                                  children: [
+                                    const Text(
+                                      'Journal Entry',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    if (latest['hasRevisions']) ...[
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
+                                        size: 16,
+                                        color: Theme.of(context).hintColor,
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                if (latest['hasRevisions']) ...[
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    latest['latestType'] == RevisionType.correction ? Icons.edit_note : (latest['latestType'] == RevisionType.reflection ? Icons.psychology : Icons.add),
-                                    size: 16,
-                                    color: Theme.of(context).hintColor,
-                                  ),
-                                ],
-                              ],
+                                subtitle: Text(
+                                  latest['content'],
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: Theme.of(context).hintColor),
+                                ),
+                                trailing: Text(
+                                  DateFormat('HH:mm').format(item.timestamp),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                onTap: () => _showJournalRevisionDialog(item),
+                              ),
                             ),
-                            subtitle: Text(
-                              latest['content'],
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: Theme.of(context).hintColor),
-                            ),
-                            trailing: Text(
-                              DateFormat('HH:mm').format(item.timestamp),
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            onTap: () => _showJournalRevisionDialog(item),
                           ),
-                        ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ),
+            ],
+          ),
+          if (_showFirstEntryHint)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => setState(() => _showFirstEntryHint = false),
+                child: Container(
+                  color: Colors.black.withOpacity(0.85), 
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.arrow_upward, color: Colors.white, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Let's start your journey.",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "How are you feeling right now?\nTap 'Log Emotion' to record your first moment.",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 40),
+                          OutlinedButton(
+                            onPressed: () => setState(() => _showFirstEntryHint = false),
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white)),
+                            child: const Text("Got it"),
+                          ),
+                        ],
                       ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+                    ),
+                  ),
+                ),
               ),
             ),
+          if (_showEntryTapHint)
+            Positioned(
+              bottom: 100,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.touch_app, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Text(
+                        "Your entry is just the beginning. Tap it to refine or reflect on this moment later.",
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () async {
+                        await SettingsService.setEntryTapHintShown(true);
+                        setState(() => _showEntryTapHint = false);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RevisionInfoRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _RevisionInfoRow({required this.icon, required this.title, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 2),
+                Text(description, style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+              ],
+            ),
+          ),
         ],
       ),
     );

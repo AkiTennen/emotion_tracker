@@ -8,14 +8,27 @@ import '../../services/settings_service.dart';
 import '../add_emotion/body_map_screen.dart';
 import '../add_emotion/add_emotion_screen.dart';
 
-class EntryDetailScreen extends StatelessWidget {
+class EntryDetailScreen extends StatefulWidget {
   final EmotionEntry entry;
 
   const EntryDetailScreen({super.key, required this.entry});
 
   @override
+  State<EntryDetailScreen> createState() => _EntryDetailScreenState();
+}
+
+class _EntryDetailScreenState extends State<EntryDetailScreen> {
+  bool _showTimelineHint = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _showTimelineHint = !SettingsService.isTimelineHintShown();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final revisions = DatabaseService.getRevisionsForEntry(entry.id);
+    final revisions = DatabaseService.getRevisionsForEntry(widget.entry.id);
     final dateFormat = SettingsService.getDateFormat();
     
     return Scaffold(
@@ -27,19 +40,53 @@ class EntryDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_showTimelineHint)
+              Container(
+                margin: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.2)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.history_edu, color: Theme.of(context).colorScheme.secondary),
+                        const SizedBox(width: 12),
+                        const Text('Your Emotional Timeline', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Every correction and reflection you make is preserved here, so you can see exactly how your perspective has shifted over time.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () async {
+                        await SettingsService.setTimelineHintShown(true);
+                        setState(() => _showTimelineHint = false);
+                      },
+                      child: const Text('Got it'),
+                    ),
+                  ],
+                ),
+              ),
             _buildTimelineTile(
               context,
               title: 'Original Moment',
-              timestamp: entry.createdAt, 
-              tier1: entry.tier1Emotion,
-              tier2: entry.tier2Emotion,
-              tier3: entry.tier3Emotion,
-              intensity: entry.intensity,
-              bodyMapData: entry.bodyMapData,
-              trigger: entry.trigger,
+              timestamp: widget.entry.createdAt, 
+              tier1: widget.entry.tier1Emotion,
+              tier2: widget.entry.tier2Emotion,
+              tier3: widget.entry.tier3Emotion,
+              intensity: widget.entry.intensity,
+              bodyMapData: widget.entry.bodyMapData,
+              trigger: widget.entry.trigger,
               isOriginal: true,
               dateFormat: dateFormat,
-              description: 'Refers to ${DateFormat(dateFormat).format(entry.timestamp)}, ${DateFormat('HH:mm').format(entry.timestamp)}',
+              description: 'Refers to ${DateFormat(dateFormat).format(widget.entry.timestamp)}, ${DateFormat('HH:mm').format(widget.entry.timestamp)}',
             ),
             ...revisions.map((rev) => _buildTimelineTile(
               context,
@@ -239,4 +286,53 @@ class EntryDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class BodyMapSmallPreviewPainter extends CustomPainter {
+  final Map<String, dynamic> data;
+  final Color color;
+
+  BodyMapSmallPreviewPainter({required this.data, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withOpacity(0.5)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final midX = size.width / 2;
+    final front = data['frontPaths'] as List?;
+    final back = data['backPaths'] as List?;
+
+    if (front != null) {
+      for (var path in front) {
+        final screenPath = Path();
+        final points = path as List;
+        if (points.isEmpty) continue;
+        screenPath.moveTo(points[0][0] * midX, points[0][1] * size.height);
+        for (var i = 1; i < points.length; i++) {
+          screenPath.lineTo(points[i][0] * midX, points[i][1] * size.height);
+        }
+        canvas.drawPath(screenPath, paint);
+      }
+    }
+
+    if (back != null) {
+      for (var path in back) {
+        final screenPath = Path();
+        final points = path as List;
+        if (points.isEmpty) continue;
+        screenPath.moveTo((points[0][0] * midX) + midX, points[0][1] * size.height);
+        for (var i = 1; i < points.length; i++) {
+          screenPath.lineTo((points[i][0] * midX) + midX, points[i][1] * size.height);
+        }
+        canvas.drawPath(screenPath, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
