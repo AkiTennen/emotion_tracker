@@ -281,7 +281,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('How "loud" is this feeling?', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('How strong is this feeling?', style: TextStyle(fontWeight: FontWeight.bold)),
             SizedBox(height: 16),
             _IntroPoint(
               icon: Icons.linear_scale,
@@ -393,7 +393,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             _IntroPoint(
               icon: Icons.psychology,
               title: 'Reflection',
-              description: 'Use this for emotional growth. Look back with new eyes and add a new layer without erasing the original snapshot.',
+              description: 'Use this for emotional growth. Look back with fresh eyes and add a new layer without erasing the original snapshot.',
             ),
           ],
         ),
@@ -1046,7 +1046,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
               const Padding(
                 padding: EdgeInsets.all(24.0),
                 child: Text(
-                  'Privacy Note: Your emotional data is yours. It is stored locally and never leaves your device unless you export a backup.',
+                  'Privacy Note: Your emotional data is yours. It is stored locally and never leaves your device unless you export a backup and send the data elsewhere yourself.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
                 ),

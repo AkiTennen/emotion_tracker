@@ -17,7 +17,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<_OnboardingData> _pages = [
     _OnboardingData(
       title: 'A place to get to know yourself better',
-      description: 'Check in whenever you want, as often as you want. This is about the moment right now—not your morning, not your day, but how you feel this very second. Over time, you\'ll discover patterns and be able to drill deeper.',
+      description: 'Check in whenever you want, as often as you want. This is about the moment right now—not your morning, not your day, but how you feel this very second. Over time, you\'ll discover patterns and be able to dig deeper into their meaning.',
       icon: Icons.self_improvement,
       color: Colors.blueGrey,
     ),
@@ -35,7 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardingData(
       title: 'Start simple, get to know yourself',
-      description: 'We start with the basics to avoid overwhelm and feature bloat. As you use the app, new layers like intensity sliders and body mapping will reveal themselves. Want it all now? You can unlock everything in Settings.',
+      description: 'We start with the basics to avoid feature bloat or that feeling of being overwhelmed. As you use the app, new layers like intensity sliders and body mapping will reveal themselves. Want it all now? You can unlock everything in Settings.',
       icon: Icons.auto_awesome_outlined,
       color: Colors.indigoAccent,
     ),

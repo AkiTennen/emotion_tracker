@@ -88,108 +88,116 @@ class _HomeScreenState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!SettingsService.isRevisionTypesHintShown())
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                  border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!SettingsService.isRevisionTypesHintShown())
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1))),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.auto_stories_outlined, size: 20),
+                          SizedBox(width: 8),
+                          Text('Refining your story', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _RevisionInfoRow(
+                        icon: Icons.edit_note,
+                        title: 'Correction ("I made a mistake")',
+                        description: 'Use this for input errors like typos or the wrong emotion. It\'s for fixing the past.',
+                      ),
+                      _RevisionInfoRow(
+                        icon: Icons.psychology,
+                        title: 'Reflection ("I see this differently")',
+                        description: 'Use this for emotional growth. Look back with fresh eyes and add a new layer without erasing the original.',
+                      ),
+                      _RevisionInfoRow(
+                        icon: Icons.history,
+                        title: 'Preservation (History)',
+                        description: 'Your safety net. Nothing is ever overwritten; we just add new chapters to this moment\'s story.',
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: TextButton(
+                          onPressed: () async {
+                            await SettingsService.setRevisionTypesHintShown(true);
+                            if (mounted) Navigator.pop(context);
+                            _showRevisionDialog(entry);
+                          },
+                          child: const Text('Got it'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.auto_stories_outlined, size: 20),
-                        SizedBox(width: 8),
-                        Text('Refining your story', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _RevisionInfoRow(
-                      icon: Icons.edit_note,
-                      title: 'Correction ("I made a mistake")',
-                      description: 'Use this for input errors like typos or the wrong emotion. It\'s for fixing the past.',
-                    ),
-                    _RevisionInfoRow(
-                      icon: Icons.psychology,
-                      title: 'Reflection ("I see this differently")',
-                      description: 'Use this for emotional growth. Look back with new eyes and add a new layer without erasing the original.',
-                    ),
-                    _RevisionInfoRow(
-                      icon: Icons.history,
-                      title: 'Preservation (History)',
-                      description: 'Your safety net. Nothing is ever overwritten; we just add new chapters to this moment\'s story.',
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: TextButton(
-                        onPressed: () async {
-                          await SettingsService.setRevisionTypesHintShown(true);
-                          if (mounted) Navigator.pop(context);
-                          _showRevisionDialog(entry);
-                        },
-                        child: const Text('Got it'),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('View history'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => EntryDetailScreen(entry: entry)),
+                  );
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.edit_note),
+                title: const Text('I made a mistake (Correction)'),
+                subtitle: const Text('Fix a typo or a mis-tap.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddEmotionScreen(
+                        selectedDate: entry.timestamp,
+                        existingEntry: currentEntryState,
+                        revisionType: RevisionType.correction,
                       ),
                     ),
-                  ],
-                ),
+                  ).then((_) => _refreshData());
+                },
               ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('View history'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => EntryDetailScreen(entry: entry)),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.edit_note),
-              title: const Text('I made a mistake (Correction)'),
-              subtitle: const Text('Fix a typo or a mis-tap.'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddEmotionScreen(
-                      selectedDate: entry.timestamp,
-                      existingEntry: currentEntryState,
-                      revisionType: RevisionType.correction,
+              ListTile(
+                leading: const Icon(Icons.psychology),
+                title: const Text('I see this differently now (Reflection)'),
+                subtitle: const Text('Re-interpret this moment with fresh eyes.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddEmotionScreen(
+                        selectedDate: entry.timestamp,
+                        existingEntry: currentEntryState,
+                        revisionType: RevisionType.reflection,
+                      ),
                     ),
-                  ),
-                ).then((_) => _refreshData());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.psychology),
-              title: const Text('I see this differently now (Reflection)'),
-              subtitle: const Text('Re-interpret this moment with fresh eyes.'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddEmotionScreen(
-                      selectedDate: entry.timestamp,
-                      existingEntry: currentEntryState,
-                      revisionType: RevisionType.reflection,
-                    ),
-                  ),
-                ).then((_) => _refreshData());
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+                  ).then((_) => _refreshData());
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -198,89 +206,96 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showJournalRevisionDialog(JournalEntry journal) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.menu_book),
-              title: const Text('Read entry'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JournalReadScreen(journal: journal)),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('View history'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JournalDetailScreen(journal: journal)),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.add),
-              title: const Text('Add information'),
-              subtitle: const Text('Keep the original and add something new.'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => JournalEditorScreen(
-                      selectedDate: journal.timestamp,
-                      existingJournal: journal,
-                      revisionType: RevisionType.addition,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.menu_book),
+                title: const Text('Read entry'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => JournalReadScreen(journal: journal)),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('View history'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => JournalDetailScreen(journal: journal)),
+                  );
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('Add information'),
+                subtitle: const Text('Keep the original and add something new.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => JournalEditorScreen(
+                        selectedDate: journal.timestamp,
+                        existingJournal: journal,
+                        revisionType: RevisionType.addition,
+                      ),
                     ),
-                  ),
-                ).then((_) => _refreshData());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit_note),
-              title: const Text('I made a mistake (Correction)'),
-              subtitle: const Text('Fix a typo.'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => JournalEditorScreen(
-                      selectedDate: journal.timestamp,
-                      existingJournal: journal,
-                      revisionType: RevisionType.correction,
+                  ).then((_) => _refreshData());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_note),
+                title: const Text('I made a mistake (Correction)'),
+                subtitle: const Text('Fix a typo.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => JournalEditorScreen(
+                        selectedDate: journal.timestamp,
+                        existingJournal: journal,
+                        revisionType: RevisionType.correction,
+                      ),
                     ),
-                  ),
-                ).then((_) => _refreshData());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.psychology),
-              title: const Text('I see this differently now (Reflection)'),
-              subtitle: const Text('Re-interpret your day.'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => JournalEditorScreen(
-                      selectedDate: journal.timestamp,
-                      existingJournal: journal,
-                      revisionType: RevisionType.reflection,
+                  ).then((_) => _refreshData());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.psychology),
+                title: const Text('I see this differently now (Reflection)'),
+                subtitle: const Text('Re-interpret your day.'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => JournalEditorScreen(
+                        selectedDate: journal.timestamp,
+                        existingJournal: journal,
+                        revisionType: RevisionType.reflection,
+                      ),
                     ),
-                  ),
-                ).then((_) => _refreshData());
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+                  ).then((_) => _refreshData());
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -292,28 +307,35 @@ class _HomeScreenState extends State<HomeScreen> {
     if (SettingsService.isJournalEnabled()) {
       showModalBottomSheet(
         context: context,
-        builder: (context) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.face),
-                title: const Text('Log Emotion'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openAddEmotionScreen();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.book),
-                title: const Text('Write Journal'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openJournalEditor();
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+        backgroundColor: Colors.transparent,
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.face),
+                  title: const Text('Log Emotion'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openAddEmotionScreen();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.book),
+                  title: const Text('Write Journal'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openJournalEditor();
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       );
