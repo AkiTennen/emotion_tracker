@@ -44,6 +44,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   bool _showTier3Hint = false;
   bool _showIntensityHint = false;
   bool _showBodyMapHint = false;
+  bool _showTriggerHint = false;
 
   final TextEditingController _customController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
@@ -86,6 +87,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       _showTier3Hint = _isTier3Unlocked && !SettingsService.isTier3IntroShown() && widget.existingEntry == null;
       _showIntensityHint = _isIntensityUnlocked && !SettingsService.isIntensityIntroShown() && widget.existingEntry == null;
       _showBodyMapHint = _isBodyMapUnlocked && !SettingsService.isBodyMapIntroShown() && widget.existingEntry == null;
+      _showTriggerHint = _isTriggerUnlocked && !SettingsService.isTriggerIntroShown() && widget.existingEntry == null;
     });
   }
 
@@ -264,6 +266,52 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 icon: Icons.front_hand,
                 title: 'Front & Back',
                 description: 'You have a front and back view to be as accurate as possible.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTriggerGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.bolt, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Exploring Triggers'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('What sparked this feeling?', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _GuidePoint(
+                icon: Icons.hub_outlined,
+                title: 'Identify Influences',
+                description: 'Noting what happened just before an emotion can help you spot recurring patterns in your life.',
+              ),
+              _GuidePoint(
+                icon: Icons.people_outline,
+                title: 'People & Places',
+                description: 'Sometimes specific environments or social interactions consistently trigger certain moods.',
+              ),
+              _GuidePoint(
+                icon: Icons.visibility_outlined,
+                title: 'Visual Clarity',
+                description: 'Entries with triggers will stand out on your calendar, helping you focus on moments of clear cause-and-effect.',
               ),
             ],
           ),
@@ -473,6 +521,10 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
       if (_showBodyMapHint || _bodyMapData != null) {
         await SettingsService.setBodyMapIntroShown(true);
+      }
+
+      if (_showTriggerHint || (_triggerText != null && _triggerText!.isNotEmpty)) {
+        await SettingsService.setTriggerIntroShown(true);
       }
     }
     
@@ -780,6 +832,15 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
               if (_isTriggerUnlocked) ...[
                 const Divider(height: 32),
+                if (_showTriggerHint)
+                  _HintCard(
+                    text: 'What sparked this feeling? Identifying influences helps you spot recurring patterns.',
+                    onClose: () async {
+                      await SettingsService.setTriggerIntroShown(true);
+                      setState(() => _showTriggerHint = false);
+                    },
+                    onInfo: _showTriggerGuide,
+                  ),
                 Text('What influenced this?', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 TextField(
@@ -788,7 +849,17 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                     hintText: 'Was it a person, place, or event?',
                     border: OutlineInputBorder(),
                   ),
-                  onChanged: (value) => _triggerText = value,
+                  onChanged: (value) {
+                    if (_showTriggerHint) {
+                      SettingsService.setTriggerIntroShown(true);
+                      setState(() {
+                        _triggerText = value;
+                        _showTriggerHint = false;
+                      });
+                    } else {
+                      _triggerText = value;
+                    }
+                  },
                 ),
               ],
             ],
