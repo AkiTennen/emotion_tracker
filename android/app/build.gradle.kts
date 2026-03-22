@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.emotion_tracker"
-        minSdk = flutter.minSdkVersion
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -30,7 +30,6 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
-            // Add these lines to enable ProGuard and specify the rules file
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

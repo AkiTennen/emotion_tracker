@@ -42,6 +42,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   bool _showStep1Hint = false;
   bool _showTier2Hint = false;
   bool _showTier3Hint = false;
+  bool _showIntensityHint = false;
 
   final TextEditingController _customController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
@@ -82,6 +83,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       
       _showTier2Hint = _isTier2Unlocked && !SettingsService.isTier2IntroShown() && widget.existingEntry == null;
       _showTier3Hint = _isTier3Unlocked && !SettingsService.isTier3IntroShown() && widget.existingEntry == null;
+      _showIntensityHint = _isIntensityUnlocked && !SettingsService.isIntensityIntroShown() && widget.existingEntry == null;
     });
   }
 
@@ -168,6 +170,52 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 icon: Icons.analytics_outlined,
                 title: 'Better Patterns',
                 description: 'The more specific you are, the better you\'ll be able to see the subtle differences in your moods over time.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showIntensityGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.speed, color: Colors.orange),
+            SizedBox(width: 12),
+            Text('Tracking Intensity'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('How "loud" is this feeling?', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _GuidePoint(
+                icon: Icons.linear_scale,
+                title: 'Simple Scale (0-3)',
+                description: '0 is very mild, 3 is overwhelming. Most emotions fall somewhere in between.',
+              ),
+              _GuidePoint(
+                icon: Icons.palette_outlined,
+                title: 'Visual Impact',
+                description: 'High intensity emotions show up with stronger, brighter colors on your Home Screen journey.',
+              ),
+              _GuidePoint(
+                icon: Icons.history,
+                title: 'Spot Patterns',
+                description: 'Tracking intensity helps you see not just what you feel, but how strongly those feelings impact your day.',
               ),
             ],
           ),
@@ -369,6 +417,10 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
       if (_showTier3Hint || _selectedTier3 != null) {
         await SettingsService.setTier3IntroShown(true);
+      }
+
+      if (_showIntensityHint || _intensity != 1.0) {
+        await SettingsService.setIntensityIntroShown(true);
       }
     }
     
@@ -595,6 +647,15 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
               if (_isIntensityUnlocked) ...[
                 const Divider(height: 32),
+                if (_showIntensityHint)
+                  _HintCard(
+                    text: 'How strong is this feeling? Intensity helps you track the volume of your emotions.',
+                    onClose: () async {
+                      await SettingsService.setIntensityIntroShown(true);
+                      setState(() => _showIntensityHint = false);
+                    },
+                    onInfo: _showIntensityGuide,
+                  ),
                 Text('Intensity: ${_intensity.toInt()}', style: Theme.of(context).textTheme.titleMedium),
                 Slider(
                   value: _intensity,
@@ -603,7 +664,17 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                   divisions: 3,
                   label: _intensity.toInt().toString(),
                   activeColor: color,
-                  onChanged: (value) => setState(() => _intensity = value),
+                  onChanged: (value) {
+                    if (_showIntensityHint) {
+                      SettingsService.setIntensityIntroShown(true);
+                      setState(() {
+                        _intensity = value;
+                        _showIntensityHint = false;
+                      });
+                    } else {
+                      setState(() => _intensity = value);
+                    }
+                  },
                 ),
               ],
 

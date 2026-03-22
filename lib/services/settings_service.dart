@@ -31,6 +31,7 @@ class SettingsService {
   static const String firstEntryHintShownKey = 'first_entry_hint_shown';
   static const String tier2IntroShownKey = 'tier_2_intro_shown';
   static const String tier3IntroShownKey = 'tier_3_intro_shown';
+  static const String intensityIntroShownKey = 'intensity_intro_shown';
   static const String entryTapHintShownKey = 'entry_tap_hint_shown';
   static const String revisionTypesHintShownKey = 'revision_types_hint_shown';
   static const String timelineHintShownKey = 'timeline_hint_shown';
@@ -79,6 +80,16 @@ class SettingsService {
   static Future<void> setTier3IntroShown(bool value) async {
     final box = Hive.box(settingsBoxName);
     await box.put(tier3IntroShownKey, value);
+  }
+
+  static bool isIntensityIntroShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(intensityIntroShownKey, defaultValue: false);
+  }
+
+  static Future<void> setIntensityIntroShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(intensityIntroShownKey, value);
   }
 
   static bool isEntryTapHintShown() {
