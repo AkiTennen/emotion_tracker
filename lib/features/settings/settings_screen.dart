@@ -348,6 +348,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 value: SettingsService.isJournalEnabled(),
                 onChanged: (bool value) async {
                   await SettingsService.setJournalEnabled(value);
+                  if (value) {
+                    await SettingsService.setJournalHighlightPending(true);
+                  }
                   setState(() {});
                 },
               ),

@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<JournalEntry> _allJournals = [];
   bool _showFirstEntryHint = false;
   bool _showEntryTapHint = false;
+  bool _showJournalHighlight = false;
 
   @override
   void initState() {
@@ -46,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _allJournals = DatabaseService.getAllJournals();
       _showFirstEntryHint = !SettingsService.isFirstEntryHintShown() && _allEntries.isEmpty;
       _showEntryTapHint = !SettingsService.isEntryTapHintShown() && _allEntries.length == 1 && !_showFirstEntryHint;
+      _showJournalHighlight = SettingsService.isJournalHighlightPending() && SettingsService.isJournalEnabled();
     });
   }
 
@@ -572,6 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               label: "Write Journal",
                               color: Theme.of(context).colorScheme.secondary,
                               onTap: () => _openJournalEditor(),
+                              highlight: _showJournalHighlight,
                             ),
                           ),
                         ],
@@ -863,6 +866,49 @@ class _HomeScreenState extends State<HomeScreen> {
                           OutlinedButton(
                             onPressed: () => setState(() => _showFirstEntryHint = false),
                             style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white)),
+                            child: const Text("Got it"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_showJournalHighlight)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () async {
+                  await SettingsService.setJournalHighlightPending(false);
+                  setState(() => _showJournalHighlight = false);
+                },
+                child: Container(
+                  color: Colors.black.withOpacity(0.85),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_stories, color: Colors.white, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Your Journal is ready.",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Use it to record long-form reflections whenever you need more space than a single emotion provides.",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 40),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await SettingsService.setJournalHighlightPending(false);
+                              setState(() => _showJournalHighlight = false);
+                            },
                             child: const Text("Got it"),
                           ),
                         ],

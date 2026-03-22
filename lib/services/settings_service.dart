@@ -36,6 +36,8 @@ class SettingsService {
   static const String entryTapHintShownKey = 'entry_tap_hint_shown';
   static const String revisionTypesHintShownKey = 'revision_types_hint_shown';
   static const String timelineHintShownKey = 'timeline_hint_shown';
+  static const String journalNudgeShownKey = 'journal_nudge_shown';
+  static const String journalHighlightPendingKey = 'journal_highlight_pending';
 
   static Future<void> init() async {
     await Hive.openBox(settingsBoxName);
@@ -131,6 +133,26 @@ class SettingsService {
   static Future<void> setTimelineHintShown(bool value) async {
     final box = Hive.box(settingsBoxName);
     await box.put(timelineHintShownKey, value);
+  }
+
+  static bool isJournalNudgeShown() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(journalNudgeShownKey, defaultValue: false);
+  }
+
+  static Future<void> setJournalNudgeShown(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(journalNudgeShownKey, value);
+  }
+
+  static bool isJournalHighlightPending() {
+    final box = Hive.box(settingsBoxName);
+    return box.get(journalHighlightPendingKey, defaultValue: false);
+  }
+
+  static Future<void> setJournalHighlightPending(bool value) async {
+    final box = Hive.box(settingsBoxName);
+    await box.put(journalHighlightPendingKey, value);
   }
 
   // --- Theme ---

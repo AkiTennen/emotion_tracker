@@ -6,6 +6,8 @@ import '../../models/emotion_entry.dart';
 import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
+import '../settings/settings_screen.dart';
+import '../../main.dart';
 import 'body_map_screen.dart';
 
 class AddEmotionScreen extends StatefulWidget {
@@ -528,12 +530,12 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       }
     }
     
-    _updateProgressionThresholds();
+    await _updateProgressionThresholds();
 
     if (mounted) Navigator.pop(context);
   }
 
-  void _updateProgressionThresholds() async {
+  Future<void> _updateProgressionThresholds() async {
     if (!SettingsService.isTier2Unlocked() && DatabaseService.getTier1Count() >= 7) {
       await SettingsService.setTier2Unlocked(true);
     }
@@ -548,6 +550,72 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     }
     if (!SettingsService.isTriggerPromptsUnlocked() && DatabaseService.getBodyMapCount() >= 3) {
       await SettingsService.setTriggerPromptsUnlocked(true);
+    }
+    
+    // Journal Nudge logic
+    if (!SettingsService.isJournalEnabled() && 
+        !SettingsService.isJournalNudgeShown() && 
+        DatabaseService.getTier1Count() >= 3) {
+      
+      if (mounted) {
+        final proceed = await showModalBottomSheet<bool>(
+          context: context,
+          builder: (context) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_stories, size: 48, color: Theme.of(context).colorScheme.secondary),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Ready to go deeper?',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'You\'ve shared 3 emotional moments. Would you like to enable long-form journaling to add more context to your journey?',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Maybe later'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Show me how'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        await SettingsService.setJournalNudgeShown(true);
+
+        if (proceed == true && mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SettingsScreen(
+                onThemeChanged: () {
+                  EmotionTrackerApp.of(context).updateThemeMode();
+                },
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 
