@@ -244,13 +244,34 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   }
 
   Widget _buildSvgAsset(String side) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SvgPicture.asset(
-        'assets/body_maps/${side}_${_bodyType.name}.svg',
-        fit: BoxFit.contain,
-        colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
-      ),
+    return Stack(
+      children: [
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+            child: SvgPicture.asset(
+              'assets/body_maps/${side}_${_bodyType.name}.svg',
+              fit: BoxFit.contain,
+              colorFilter: ColorFilter.mode(Colors.grey.shade400, BlendMode.srcIn),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 8,
+          left: 0,
+          right: 0,
+          child: Text(
+            side.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.withOpacity(0.5),
+              letterSpacing: 1.5,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

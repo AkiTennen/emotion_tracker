@@ -43,6 +43,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   bool _showTier2Hint = false;
   bool _showTier3Hint = false;
   bool _showIntensityHint = false;
+  bool _showBodyMapHint = false;
 
   final TextEditingController _customController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
@@ -84,6 +85,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       _showTier2Hint = _isTier2Unlocked && !SettingsService.isTier2IntroShown() && widget.existingEntry == null;
       _showTier3Hint = _isTier3Unlocked && !SettingsService.isTier3IntroShown() && widget.existingEntry == null;
       _showIntensityHint = _isIntensityUnlocked && !SettingsService.isIntensityIntroShown() && widget.existingEntry == null;
+      _showBodyMapHint = _isBodyMapUnlocked && !SettingsService.isBodyMapIntroShown() && widget.existingEntry == null;
     });
   }
 
@@ -216,6 +218,52 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 icon: Icons.history,
                 title: 'Spot Patterns',
                 description: 'Tracking intensity helps you see not just what you feel, but how strongly those feelings impact your day.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBodyMapGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.accessibility_new, color: Colors.green),
+            SizedBox(width: 12),
+            Text('Listening to your body'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Emotions aren\'t just in our heads.', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _GuidePoint(
+                icon: Icons.gesture,
+                title: 'Visualize Feelings',
+                description: 'Tap or draw on the body map to mark where you feel this emotion (e.g., "butterflies" in the stomach or a "tight" chest).',
+              ),
+              _GuidePoint(
+                icon: Icons.zoom_in,
+                title: 'Zoom & Pan',
+                description: 'Use two fingers to zoom in and move around for more precise marking.',
+              ),
+              _GuidePoint(
+                icon: Icons.front_hand,
+                title: 'Front & Back',
+                description: 'You have a front and back view to be as accurate as possible.',
               ),
             ],
           ),
@@ -422,6 +470,10 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       if (_showIntensityHint || _intensity != 1.0) {
         await SettingsService.setIntensityIntroShown(true);
       }
+
+      if (_showBodyMapHint || _bodyMapData != null) {
+        await SettingsService.setBodyMapIntroShown(true);
+      }
     }
     
     _updateProgressionThresholds();
@@ -448,24 +500,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
   }
 
   void _openBodyMap() async {
-    if (!SettingsService.isBodyMapIntroShown()) {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Listening to your body'),
-          content: const Text(
-            'Sometimes emotions aren\'t just in our heads—they\'re in our bodies too.\n\n'
-            'In this screen, you can "draw" where you feel this emotion. Use two fingers to zoom in and pan for more detail.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Got it'),
-            ),
-          ],
-        ),
-      );
+    if (_showBodyMapHint) {
       await SettingsService.setBodyMapIntroShown(true);
+      setState(() => _showBodyMapHint = false);
     }
 
     if (!mounted) return;
@@ -680,6 +717,15 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
 
               if (_isBodyMapUnlocked) ...[
                 const Divider(height: 32),
+                if (_showBodyMapHint)
+                  _HintCard(
+                    text: 'Where do you feel this in your body? Mark the areas that are reacting to this emotion.',
+                    onClose: () async {
+                      await SettingsService.setBodyMapIntroShown(true);
+                      setState(() => _showBodyMapHint = false);
+                    },
+                    onInfo: _showBodyMapGuide,
+                  ),
                 Text('Body Map', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 InkWell(
