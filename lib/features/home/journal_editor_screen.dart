@@ -5,6 +5,7 @@ import '../../models/journal_entry.dart';
 import '../../models/journal_revision.dart';
 import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
+import '../../services/settings_service.dart';
 import '../../models/emotion_data.dart';
 
 class JournalEditorScreen extends StatefulWidget {
@@ -34,6 +35,9 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
   void initState() {
     super.initState();
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFirstTimeIntro();
+    });
   }
 
   void _loadData() {
@@ -50,6 +54,61 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
         _contentController.text = latest['content'];
       }
     }
+  }
+
+  void _checkFirstTimeIntro() async {
+    if (!SettingsService.isJournalIntroShown()) {
+      _showJournalGuide();
+    }
+  }
+
+  void _showJournalGuide() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.auto_stories, color: Colors.teal),
+            SizedBox(width: 12),
+            Text('Your Private Space'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Journaling helps you process what emotions alone cannot capture.', style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              _GuidePoint(
+                icon: Icons.hub_outlined,
+                title: 'Emotional Context',
+                description: 'We show your emotions for the day at the top to help you anchor your writing in how you were feeling.',
+              ),
+              _GuidePoint(
+                icon: Icons.history_edu,
+                title: 'A Living Record',
+                description: 'You can always "Add to" a journal later. This preserves your initial thoughts while letting your story grow.',
+              ),
+              _GuidePoint(
+                icon: Icons.security_outlined,
+                title: 'Total Privacy',
+                description: 'These words are yours alone. They are encrypted in your local database and never leave this device.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SettingsService.setJournalIntroShown(true);
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Start Writing'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -118,6 +177,13 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: _showJournalGuide,
+            tooltip: 'Show Journal Guide',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -246,6 +312,38 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
                 onPressed: _save,
                 child: Text(widget.existingJournal == null ? 'Save Journal Entry' : 'Save Revision'),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuidePoint extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _GuidePoint({required this.icon, required this.title, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(description, style: TextStyle(fontSize: 13, color: Theme.of(context).hintColor)),
+              ],
             ),
           ),
         ],
