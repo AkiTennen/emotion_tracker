@@ -1,12 +1,26 @@
 import 'package:uuid/uuid.dart';
 
+/// Represents a primary recorded emotion entry in the user's log.
 class EmotionEntry {
+  /// Unique identifier (UUID).
   String id;
-  DateTime timestamp; // The date/time the emotion happened (Calendar date)
-  DateTime createdAt; // The real-world time the log was created
+
+  /// The calendar date and time the user experienced the emotion.
+  DateTime timestamp;
+
+  /// The real-world timestamp when this entry was created.
+  DateTime createdAt;
+
+  /// Primary emotion category (Tier 1).
   String tier1Emotion;
+
+  /// Secondary emotion subcategory (Tier 2), if selected.
   String? tier2Emotion;
+
+  /// Specific emotion (Tier 3), if selected.
   String? tier3Emotion;
+
+  /// Intensity rating of the emotion (typically 1-5, or 0 if unrated).
   int intensity;
   
   /// Stores body map drawing data as a JSON-compatible map.
@@ -27,6 +41,7 @@ class EmotionEntry {
     this.trigger,
   });
 
+  /// Serializes this entry to a map for Hive storage.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -41,6 +56,7 @@ class EmotionEntry {
     };
   }
 
+  /// Deserializes an entry from storage, falling back to [timestamp] if [createdAt] is missing.
   factory EmotionEntry.fromMap(Map<dynamic, dynamic> map) {
     return EmotionEntry(
       id: map['id'] as String,

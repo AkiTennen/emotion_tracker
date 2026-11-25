@@ -9,8 +9,12 @@ import '../../models/emotion_data.dart';
 import '../../models/emotion_entry_revision.dart';
 import '../onboarding/onboarding_screen.dart';
 
+/// Settings and preferences hub with tabs for general appearance/progression,
+/// daily check-in reminders, custom emotion colors, data backup/restore, and guide tutorials.
 class SettingsScreen extends StatefulWidget {
+  /// Callback triggered whenever the app theme mode changes.
   final VoidCallback onThemeChanged;
+
   const SettingsScreen({super.key, required this.onThemeChanged});
 
   @override
@@ -50,7 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   void _handleTabSelection() {
     if (_tabController.indexIsChanging) return;
     
-    // Index 1: Reminders, Index 2: Colors, Index 3: Data
+    // Check and show first-time intro dialogs for Reminders (Tab 1), Colors (Tab 2), and Data (Tab 3)
     if (_tabController.index == 1 && !SettingsService.isRemindersIntroShown()) {
       _showRemindersIntro();
     } else if (_tabController.index == 2 && !SettingsService.isColorsIntroShown()) {
@@ -60,7 +64,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     }
   }
 
-  // --- INTRO DIALOGS ---
+  // ==========================================
+  // Feature Intro Dialogs
+  // ==========================================
 
   void _showRemindersIntro() {
     showDialog(
@@ -436,6 +442,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
 
+  /// Loads configured reminders from storage and instantiates synchronized
+  /// [TextEditingController] instances for live message editing.
   void _loadReminders() {
     _reminders = SettingsService.getReminders();
     for (var c in _controllers) {
@@ -457,6 +465,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  /// Syncs edited controller texts into [Reminder] instances and persists them to Hive.
   void _saveReminders() async {
     try {
       final updatedReminders = <Reminder>[];
@@ -517,6 +526,8 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     }
   }
 
+  /// Displays a dialog allowing the user to select their anatomical silhouette model
+  /// (Neutral, Female, or Male) with live SVG preview.
   void _showBodyTypePicker() {
     showDialog(
       context: context,
@@ -598,6 +609,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
     );
   }
 
+  /// Displays an interactive color picker dialog to customize the palette hue for [emotion].
   void _pickColor(String emotion) {
     final currentColors = SettingsService.getCustomColors();
     Color currentColor = EmotionData.getColor(emotion);
@@ -672,7 +684,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
       body: TabBarView(
         controller: _tabController,
         children: [
-          // TAB 1: General & Progression
+          // ==========================================
+          // Tab 1: General Preferences & Progression
+          // ==========================================
           ListView(
             children: [
               _buildSectionHeader('APPEARANCE'),
@@ -830,7 +844,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             ],
           ),
 
-          // TAB 2: Reminders
+          // ==========================================
+          // Tab 2: Daily Reminders
+          // ==========================================
           ListView(
             padding: const EdgeInsets.only(bottom: 20),
             children: [
@@ -953,7 +969,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             ],
           ),
 
-          // TAB 3: Colors
+          // ==========================================
+          // Tab 3: Custom Emotion Colors
+          // ==========================================
           ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -997,7 +1015,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             ],
           ),
 
-          // TAB 4: Data
+          // ==========================================
+          // Tab 4: Data Management & Backup
+          // ==========================================
           ListView(
             children: [
               _buildSectionHeader('DATA MANAGEMENT', onHelp: _showDataIntro),
@@ -1054,7 +1074,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
             ],
           ),
 
-          // TAB 5: Guides
+          // ==========================================
+          // Tab 5: Feature Guides & Tutorials
+          // ==========================================
           ListView(
             children: [
               _buildSectionHeader('APP FOUNDATIONS'),

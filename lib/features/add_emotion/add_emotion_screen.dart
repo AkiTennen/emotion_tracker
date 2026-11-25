@@ -10,9 +10,19 @@ import '../settings/settings_screen.dart';
 import '../../main.dart';
 import 'body_map_screen.dart';
 
+/// Screen for logging a new emotion check-in or submitting a retrospective
+/// revision to an existing [EmotionEntry].
+///
+/// Features progressive disclosure, unlocking deeper hierarchy levels,
+/// intensity rating, body mapping, and trigger prompts as the user logs more entries.
 class AddEmotionScreen extends StatefulWidget {
+  /// The calendar date for which the emotion is being recorded.
   final DateTime selectedDate;
+
+  /// Existing entry being revised, or null if creating a new log.
   final EmotionEntry? existingEntry;
+
+  /// The revision type (correction, reflection, addition) if revising an existing entry.
   final RevisionType? revisionType;
 
   const AddEmotionScreen({
@@ -366,6 +376,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     );
   }
 
+  /// Checks whether a custom emotion entry already exists in the built-in wheel
+  /// or previous user custom emotions. If a match exists and is unlocked, prompts
+  /// the user to either adopt the existing path or keep their custom label.
   void _handleCustomEmotion(String text, int tier) {
     final allT2 = <String, List<String>>{};
     final allT3 = <String, List<String>>{};
@@ -425,6 +438,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     _persistAndSetCustomValue(text, tier);
   }
 
+  /// Persists a new custom emotion under the currently selected Tier 1 category.
   Future<void> _persistAndSetCustomValue(String text, int tier) async {
     if (_selectedTier1 == null) return;
     
@@ -456,7 +470,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 if (_selectedTier3 == emotion) setState(() => _selectedTier3 = null);
               }
               Navigator.pop(context);
-              setState(() {}); // Refresh chips
+              setState(() {});
             },
             child: const Text('Remove', style: TextStyle(color: Colors.red)),
           ),
@@ -465,6 +479,8 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     );
   }
 
+  /// Persists either a new [EmotionEntry] or an [EmotionEntryRevision], marks
+  /// first-time guides as viewed, evaluates progression thresholds, and closes the screen
   void _saveEntry() async {
     if (_selectedTier1 == null) return;
 
@@ -535,6 +551,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
     if (mounted) Navigator.pop(context);
   }
 
+
+  /// Checks if entry counts have reached milestone threshold to unlock new features
+  /// (Tier 2 Tier 3 Intensity, Body Map, Trigger prompts or Journaling)
   Future<void> _updateProgressionThresholds() async {
     if (!SettingsService.isTier2Unlocked() && DatabaseService.getTier1Count() >= 7) {
       await SettingsService.setTier2Unlocked(true);
@@ -552,7 +571,7 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
       await SettingsService.setTriggerPromptsUnlocked(true);
     }
     
-    // Journal Nudge logic
+    // Once the user has logged 3 entries, prompt them to explore long-form journaling
     if (!SettingsService.isJournalEnabled() && 
         !SettingsService.isJournalNudgeShown() && 
         DatabaseService.getTier1Count() >= 3) {
@@ -667,6 +686,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ------------------------------------------
+            // Step 1: Primary Category Selection
+            // ------------------------------------------
             if (_showStep1Hint)
               _HintCard(
                 text: 'Every emotion starts here. Pick the one that fits best in this moment.',
@@ -696,6 +718,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
             ),
             
             if (_selectedTier1 != null) ...[
+              // ------------------------------------------
+              // Step 2: Secondary Emotion & Custom (Gated)
+              // ------------------------------------------
               if (_isTier2Unlocked) ...[
                 const Divider(height: 32),
                 if (_showTier2Hint)
@@ -749,6 +774,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 ),
               ],
 
+              // ------------------------------------------
+              // Step 3: Tertiary Emotion & Custom (Gated)
+              // ------------------------------------------
               if (_isTier3Unlocked) ...[
                 const Divider(height: 32),
                 if (_showTier3Hint)
@@ -802,6 +830,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 ),
               ],
 
+              // ------------------------------------------
+              // Step 4: Intensity Slider (Gated)
+              // ------------------------------------------
               if (_isIntensityUnlocked) ...[
                 const Divider(height: 32),
                 if (_showIntensityHint)
@@ -835,6 +866,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 ),
               ],
 
+              // ------------------------------------------
+              // Step 5: Somatic Body Map (Gated)
+              // ------------------------------------------
               if (_isBodyMapUnlocked) ...[
                 const Divider(height: 32),
                 if (_showBodyMapHint)
@@ -898,6 +932,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
                 ),
               ],
 
+              // ------------------------------------------
+              // Step 6: Trigger / Influence Note (Gated)
+              // ------------------------------------------
               if (_isTriggerUnlocked) ...[
                 const Divider(height: 32),
                 if (_showTriggerHint)
@@ -932,6 +969,9 @@ class _AddEmotionScreenState extends State<AddEmotionScreen> {
               ],
             ],
 
+            // ------------------------------------------
+            // Step 7: Retrospective Reflection Reasoning
+            // ------------------------------------------
             if (widget.revisionType == RevisionType.reflection) ...[
               const Divider(height: 32),
               Text('Why does this feel different now?', style: Theme.of(context).textTheme.titleMedium),

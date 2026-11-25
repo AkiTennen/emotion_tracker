@@ -8,6 +8,10 @@ import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
 import '../../models/emotion_data.dart';
 
+/// Editor screen for creating a new daily journal entry or submitting a revision
+/// (correction, reflection, or addition) to an existing [JournalEntry].
+///
+/// Displays a reference banner summarizing all emotion entries logged on the selected date.
 class JournalEditorScreen extends StatefulWidget {
   final DateTime selectedDate;
   final JournalEntry? existingJournal;
@@ -123,6 +127,8 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
+  /// Persists either a new [JournalEntry] or an immutable [JournalRevision]
+  /// and navigates back to the caller.
   void _save() async {
     final content = _contentController.text.trim();
     if (content.isEmpty) return;
@@ -133,7 +139,7 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
     }
 
     if (widget.existingJournal != null && widget.revisionType != null) {
-      // Save Revision
+      // Create and persist revision
       final revision = JournalRevision(
         journalId: widget.existingJournal!.id,
         revisionType: widget.revisionType!,
@@ -142,7 +148,7 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
       );
       await DatabaseService.saveJournalRevision(revision);
     } else {
-      // Save New Entry
+      // Create and persist new journal entry
       final now = DateTime.now();
       final journal = JournalEntry(
         id: const Uuid().v4(),
@@ -187,7 +193,7 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
       ),
       body: Column(
         children: [
-          // REFERENCE HEADER
+          // Emotion check-ins summary header for reference
           if (_dayEntries.isNotEmpty)
             Container(
               width: double.infinity,
@@ -303,7 +309,7 @@ class _JournalEditorScreenState extends State<JournalEditorScreen> {
             ),
           ),
           
-          // BOTTOM SAVE BUTTON
+          // Primary save action
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(

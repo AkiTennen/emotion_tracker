@@ -5,11 +5,12 @@ import 'services/reminder_service.dart';
 import 'features/home/home_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 
+/// Application entry point. Initializes framework bindings, local storage,
+/// and scheduled notification services before launching the app.
 void main() async {
-  // Ensure Flutter is initialized before calling any services
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize our local database and settings
+  // Initialize persistent Hive boxes and reminder notifications
   await DatabaseService.init();
   await SettingsService.init();
   await ReminderService.init();
@@ -17,9 +18,12 @@ void main() async {
   runApp(const EmotionTrackerApp());
 }
 
+/// Root application widget that configures Material 3 theming, routing,
+/// and manages dynamic theme and onboarding state.
 class EmotionTrackerApp extends StatefulWidget {
   const EmotionTrackerApp({super.key});
 
+  /// Allows descendant widgets to access and trigger root app state changes.
   static _EmotionTrackerAppState of(BuildContext context) =>
       context.findAncestorStateOfType<_EmotionTrackerAppState>()!;
 
@@ -38,12 +42,14 @@ class _EmotionTrackerAppState extends State<EmotionTrackerApp> {
     _showOnboarding = !SettingsService.isOnboardingShown();
   }
 
+  /// Reloads the user's selected theme mode from [SettingsService].
   void updateThemeMode() {
     setState(() {
       _themeMode = SettingsService.getThemeMode();
     });
   }
 
+  /// Re-evaluates whether the onboarding flow should be displayed.
   void refreshOnboardingState() {
     setState(() {
       _showOnboarding = !SettingsService.isOnboardingShown();

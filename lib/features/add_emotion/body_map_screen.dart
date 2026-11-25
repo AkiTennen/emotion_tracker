@@ -3,10 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/settings_service.dart';
 
+/// Interactive anatomical canvas where users can sketch somatic sensations
+/// (tension, warmth, pain) on front and back body silhouettes.
+///
+/// Supports interactive pan/zoom as well as freehand stroke drawing.
 class BodyMapScreen extends StatefulWidget {
+  /// Pre-existing body map drawing data for viewing or editing.
   final Map<String, dynamic>? initialData;
+
+  /// Stroke tint matching the logged emotion category.
   final Color emotionColor;
+
+  /// Whether the canvas is view-only or allows drawing/undo/clear.
   final bool readOnly;
+
+  /// Explicit body model override, or null to use [SettingsService.getBodyType].
   final BodyType? overrideBodyType;
 
   const BodyMapScreen({
@@ -28,7 +39,9 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   final TransformationController _transformationController = TransformationController();
   
   bool _isDrawingMode = false;
-  String? _activeSide; // 'front' or 'back' to lock side during a stroke
+
+  /// Active silhouette region ('front' or 'back') to lock gesture strokes to a single side.
+  String? _activeSide;
 
   @override
   void initState() {
@@ -43,6 +56,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     super.dispose();
   }
 
+  /// Deserializes initial front and back path coordinates from storage.
   void _loadInitialData() {
     _frontPaths = [];
     _backPaths = [];
@@ -64,6 +78,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     }
   }
 
+  /// Serializes normalized drawing paths and body type into a JSON-compatible map.
   Map<String, dynamic> _saveData() {
     return {
       'version': 1,
@@ -73,6 +88,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     };
   }
 
+  /// Clears all drawn strokes on both front and back silhouettes.
   void _clear() {
     setState(() {
       _frontPaths.clear();
@@ -80,6 +96,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     });
   }
 
+  /// Removes the most recently drawn stroke path.
   void _undo() {
     setState(() {
       if (_backPaths.isNotEmpty) {
@@ -123,7 +140,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
                 onInteractionStart: (details) {
                   if (widget.readOnly || !_isDrawingMode || details.pointerCount != 1) return;
                   
-                  // Determine side and lock it
+                  // Translate initial touch point to determine and lock the active silhouette side
                   final translatedPos = _getTranslatedPoint(details.localFocalPoint);
                   if (isPortrait) {
                     _activeSide = translatedPos.dy < (height / 2) ? 'front' : 'back';
@@ -203,6 +220,8 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     );
   }
 
+  /// Appends touch points to either front or back path collections using
+  /// normalized (0.0 to 1.0) coordinates for responsive scaling.
   void _handleInteraction(Offset localPoint, bool isStart, bool isPortrait, double width, double height) {
     if (_activeSide == null) return;
     
@@ -235,6 +254,8 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
     });
   }
 
+  /// Inverts the [InteractiveViewer] pan and zoom matrix to translate screen
+  /// touch coordinates into canvas coordinate space.
   Offset _getTranslatedPoint(Offset point) {
     final Matrix4 transform = _transformationController.value;
     final double scale = transform.getMaxScaleOnAxis();
@@ -276,6 +297,7 @@ class _BodyMapScreenState extends State<BodyMapScreen> {
   }
 }
 
+/// Segmented toggle button for switching between navigation ('Move') and drawing ('Draw') modes.
 class _ModeButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -326,6 +348,7 @@ class _ModeButton extends StatelessWidget {
   }
 }
 
+/// Custom painter that scales and renders normalized front and back body map stroke paths.
 class BodyMapPainter extends CustomPainter {
   final List<List<Offset>> frontPaths;
   final List<List<Offset>> backPaths;

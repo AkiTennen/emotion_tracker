@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
 
+/// Represents a matched emotion node in the hierarchy, identifying its category,
+/// depth level (Tier 1, 2, or 3), and whether it was user-created.
 class EmotionMatch {
+  /// The primary (Tier 1) category name.
   final String tier1;
+
+  /// The secondary (Tier 2) subcategory name, if matched at Tier 2 or Tier 3.
   final String? tier2;
+
+  /// The tertiary (Tier 3) specific emotion name, if matched at Tier 3.
   final String? tier3;
-  final int tier; // 1, 2, or 3
+
+  /// Depth level in the emotion hierarchy (1, 2, or 3).
+  final int tier;
+
+  /// Whether this match originates from user-defined custom emotions.
   final bool isCustom;
 
   EmotionMatch({
@@ -17,7 +28,11 @@ class EmotionMatch {
   });
 }
 
+/// Static data repository and search utility for the emotion wheel hierarchy
+/// (Tier 1 Primary -> Tier 2 Secondary -> Tier 3 Specific).
 class EmotionData {
+  /// The standard Feeling Wheel taxonomy mapping:
+  /// Primary Category -> Secondary Subcategory -> List of Specific Emotions.
   static const Map<String, Map<String, List<String>>> wheel = {
     'Bad': {
       'Bored': ['Indifferent', 'Apathetic'],
@@ -76,26 +91,32 @@ class EmotionData {
     },
   };
 
+  /// Returns all primary (Tier 1) emotion categories.
   static List<String> get tier1 => wheel.keys.toList();
 
+  /// Returns all secondary (Tier 2) subcategories under [t1].
   static List<String> getTier2(String t1) => wheel[t1]?.keys.toList() ?? [];
 
+  /// Returns a deduplicated list of all tertiary (Tier 3) emotions under [t1].
   static List<String> getAllTier3ForCategory(String t1) {
     final category = wheel[t1];
     if (category == null) return [];
     return category.values.expand((list) => list).toSet().toList();
   }
 
+  /// Returns the specific tertiary (Tier 3) emotions under category [t1] and subcategory [t2].
   static List<String> getTier3Specific(String t1, String t2) => wheel[t1]?[t2] ?? [];
 
+  /// Resolves the display [Color] for a primary [tier1Emotion].
+  /// Checks for user-configured custom colors first, then falls back to default palette hues.
   static Color getColor(String tier1Emotion) {
-    // Check for custom color first
+    // Check for user-defined custom color override
     final customColors = SettingsService.getCustomColors();
     if (customColors.containsKey(tier1Emotion)) {
       return Color(customColors[tier1Emotion]!);
     }
 
-    // Default Fallbacks
+    // Default palette fallbacks
     switch (tier1Emotion) {
       case 'Bad': return Colors.brown.shade300;
       case 'Fearful': return Colors.deepPurple.shade300;
@@ -108,7 +129,8 @@ class EmotionData {
     }
   }
 
-  /// Searches for a text match in the hardcoded hierarchy AND custom emotions.
+  /// Searches for a case-insensitive text match in the built-in wheel hierarchy
+  /// as well as any provided custom Tier 2 or Tier 3 emotion maps.
   static EmotionMatch? findMatch(
     String text, {
     Map<String, List<String>>? customT2Map,
@@ -117,7 +139,7 @@ class EmotionData {
     final lowerText = text.trim().toLowerCase();
     if (lowerText.isEmpty) return null;
 
-    // 1. Check Hardcoded Wheel
+    // 1. Check built-in wheel
     for (var t1 in wheel.keys) {
       if (t1.toLowerCase() == lowerText) return EmotionMatch(tier1: t1, tier: 1);
       
@@ -132,7 +154,7 @@ class EmotionData {
       }
     }
 
-    // 2. Check Custom Emotions (if provided)
+    // 2. Check custom emotions (if provided)
     if (customT2Map != null) {
       for (var t1 in customT2Map.keys) {
         for (var t2 in customT2Map[t1]!) {

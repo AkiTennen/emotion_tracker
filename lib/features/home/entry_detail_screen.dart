@@ -8,7 +8,10 @@ import '../../services/settings_service.dart';
 import '../add_emotion/body_map_screen.dart';
 import '../add_emotion/add_emotion_screen.dart';
 
+/// Screen displaying the complete chronological audit trail of an [EmotionEntry],
+/// showing the original check-in followed by all historical corrections and reflections.
 class EntryDetailScreen extends StatefulWidget {
+  /// The base emotion entry whose timeline history is being inspected.
   final EmotionEntry entry;
 
   const EntryDetailScreen({super.key, required this.entry});
@@ -108,6 +111,8 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     );
   }
 
+  /// Builds a timeline card representing a single state (original entry or revision)
+  /// in the emotion's history, with optional body map and reflection notes.
   Widget _buildTimelineTile(
     BuildContext context, {
     required String title,

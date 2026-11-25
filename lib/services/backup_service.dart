@@ -9,10 +9,13 @@ import 'package:share_plus/share_plus.dart';
 import 'database_service.dart';
 import 'settings_service.dart';
 
+/// Service responsible for exporting and importing complete app data backups
+/// as versioned JSON archives.
 class BackupService {
+  /// Schema version of the exported backup bundle.
   static const int currentBackupVersion = 1;
 
-  /// Bundles all database data into a single JSON map.
+  /// Aggregates all database boxes and user settings into a JSON-serializable map.
   static Future<Map<String, dynamic>> _createDataBundle() async {
     final Map<String, dynamic> bundle = {
       'metadata': {
@@ -40,18 +43,21 @@ class BackupService {
     return bundle;
   }
 
-  /// Exports the data bundle to a JSON file. 
+  /// Exports the application data bundle to a JSON file.
+  ///
+  /// Prompts the user to choose a destination via the system file picker.
+  /// If the file picker is unsupported or fails, falls back to sharing the file
+  /// via the system share sheet.
   static Future<void> exportBackup() async {
     try {
       final bundle = await _createDataBundle();
       final jsonString = jsonEncode(bundle);
-      final Uint8List bytes = utf8.encode(jsonString); // Convert string to bytes
+      final Uint8List bytes = utf8.encode(jsonString);
       
       final dateStr = DateFormat('yyyy_MM_dd_HHmm').format(DateTime.now());
       final fileName = 'emotion_tracker_backup_$dateStr.json';
 
-      // 1. Try letting the user pick a save location
-      // Note: On Android/iOS, providing 'bytes' is mandatory for this method.
+      // Prompt user for save destination. On mobile platforms, bytes must be provided directly.
       String? outputPath = await FilePicker.platform.saveFile(
         dialogTitle: 'Select where to save your backup',
         fileName: fileName,
@@ -60,14 +66,12 @@ class BackupService {
         bytes: bytes,
       );
 
-      // On mobile, if outputPath is not null, the plugin has already saved the file using the bytes provided.
+      // User canceled the file picker dialog; abort export without falling back to share.
       if (outputPath == null) {
-        // User cancelled the "Save As" dialog. We can optionally fall back to Share if preferred,
-        // but usually, a cancel means the user changed their mind.
-        // For now, we'll do nothing on cancel to stay "calm".
+        return;
       }
     } catch (e) {
-      // If saveFile is not supported on this platform/version, fallback to Share.
+      // Fallback: write to temp directory and open the system share sheet.
       final directory = await getTemporaryDirectory();
       final dateStr = DateFormat('yyyy_MM_dd_HHmm').format(DateTime.now());
       final filePath = '${directory.path}/emotion_tracker_backup_$dateStr.json';
@@ -78,7 +82,10 @@ class BackupService {
     }
   }
 
-  /// Opens a file picker, reads the JSON backup, and restores the database.
+  /// Prompts the user to select a backup JSON file, validates the schema,
+  /// clears current database tables, and restores all entries and settings.
+  ///
+  /// Returns `true` if import succeeded, or `false` if canceled by the user.
   static Future<bool> importBackup() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -100,7 +107,7 @@ class BackupService {
 
       await _clearAllData();
 
-      // Restore Emotions
+      /// Restore Emotions
       final entriesBox = Hive.box(DatabaseService.entriesBoxName);
       final entries = data['emotion_entries'] as List;
       for (var entry in entries) {
@@ -108,14 +115,14 @@ class BackupService {
         await entriesBox.put(map['id'], map);
       }
 
-      // Restore Emotion Revisions
+      /// Restore Emotion Revisions
       final revBox = Hive.box(DatabaseService.revisionsBoxName);
       final revs = data['emotion_revisions'] as List;
       for (var rev in revs) {
         await revBox.add(Map<String, dynamic>.from(rev as Map));
       }
 
-      // Restore Journals
+      /// Restore Journals
       final journalBox = Hive.box(DatabaseService.journalsBoxName);
       final journals = data['journals'] as List;
       for (var j in journals) {
@@ -123,21 +130,21 @@ class BackupService {
         await journalBox.put(map['id'], map);
       }
 
-      // Restore Journal Revisions
+      /// Restore Journal Revisions
       final journalRevBox = Hive.box(DatabaseService.journalRevisionsBoxName);
       final jRevs = data['journal_revisions'] as List;
       for (var jr in jRevs) {
         await journalRevBox.add(Map<String, dynamic>.from(jr as Map));
       }
 
-      // Restore Custom Emotions
+      /// Restore custom emotions
       final customBox = Hive.box(DatabaseService.customEmotionsBoxName);
       final customEmotions = data['custom_emotions'] as Map;
       for (var key in customEmotions.keys) {
         await customBox.put(key, customEmotions[key]);
       }
 
-      // Restore Settings
+      /// Restore user settings
       final settingsBox = Hive.box(SettingsService.settingsBoxName);
       final settings = data['settings'] as Map;
       for (var key in settings.keys) {
@@ -150,6 +157,7 @@ class BackupService {
     }
   }
 
+  /// Wipes all persistent Hive storage boxes prior to restoring backup data.
   static Future<void> _clearAllData() async {
     await Hive.box(DatabaseService.entriesBoxName).clear();
     await Hive.box(DatabaseService.revisionsBoxName).clear();

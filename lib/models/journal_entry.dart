@@ -1,9 +1,17 @@
 import 'package:uuid/uuid.dart';
 
+/// Represents a freeform journal text entry linked to a specific calendar date.
 class JournalEntry {
+  /// Unique identifier (UUID).
   final String id;
-  final DateTime timestamp; // The calendar date/time this journal refers to
-  final DateTime createdAt; // Real-world creation time
+
+  /// The calendar date and time this journal refers to.
+  final DateTime timestamp;
+
+  /// Real-world creation timestamp.
+  final DateTime createdAt;
+
+  /// The markdown or plain text content of the journal.
   final String content;
 
   JournalEntry({
@@ -13,6 +21,7 @@ class JournalEntry {
     required this.content,
   });
 
+  /// Serializes this journal entry to a map for Hive storage.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -22,6 +31,7 @@ class JournalEntry {
     };
   }
 
+  /// Deserializes a journal entry from storage, falling back to [timestamp] if [createdAt] is missing.
   factory JournalEntry.fromMap(Map<dynamic, dynamic> map) {
     return JournalEntry(
       id: map['id'] as String,

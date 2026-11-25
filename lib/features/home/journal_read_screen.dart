@@ -6,7 +6,10 @@ import '../../models/emotion_data.dart';
 import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
 
+/// Dedicated read-only viewer for a [JournalEntry], displaying its latest revised content,
+/// timestamps, edited badge, and the emotions logged on that same day.
 class JournalReadScreen extends StatelessWidget {
+  /// The journal entry being viewed.
   final JournalEntry journal;
 
   const JournalReadScreen({super.key, required this.journal});

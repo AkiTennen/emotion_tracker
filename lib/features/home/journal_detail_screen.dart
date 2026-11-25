@@ -6,7 +6,10 @@ import '../../models/emotion_entry_revision.dart';
 import '../../services/database_service.dart';
 import '../../services/settings_service.dart';
 
+/// Screen displaying the complete chronological revision history of a [JournalEntry],
+/// illustrating how the journal content evolved through corrections, reflections, or additions.
 class JournalDetailScreen extends StatelessWidget {
+  /// The base journal entry whose version history is being viewed.
   final JournalEntry journal;
 
   const JournalDetailScreen({super.key, required this.journal});
@@ -64,6 +67,7 @@ class JournalDetailScreen extends StatelessWidget {
     }
   }
 
+  /// Renders a timeline node representing a specific snapshot in the journal's revision history.
   Widget _buildJournalTimelineTile(
     BuildContext context, {
     required String title,

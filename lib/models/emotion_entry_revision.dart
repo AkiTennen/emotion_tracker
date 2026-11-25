@@ -10,14 +10,30 @@ enum RevisionType {
   addition,
 }
 
+/// Represents an immutable revision or retrospective reflection on an existing [EmotionEntry].
 class EmotionEntryRevision {
+  /// The ID of the parent [EmotionEntry] this revision modifies.
   final String emotionEntryId;
+
+  /// Timestamp when this revision was logged.
   final DateTime timestamp;
+
+  /// Nature of the revision (correction, reflection, or addition).
   final RevisionType revisionType;
+
+  /// Revised primary emotion category (Tier 1).
   final String tier1Emotion;
+
+  /// Revised secondary emotion subcategory (Tier 2), if specified.
   final String? tier2Emotion;
+
+  /// Revised specific emotion (Tier 3), if specified.
   final String? tier3Emotion;
+
+  /// Revised intensity rating.
   final int intensity;
+
+  /// Optional retrospective notes or reasoning for this revision.
   final String? reflectionText;
   
   /// Stores the state of the body map at the time of this revision.
@@ -39,7 +55,7 @@ class EmotionEntryRevision {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
-  // Convert EmotionEntryRevision object to a Map for Hive storage
+  /// Serializes this revision to a map for Hive storage.
   Map<String, dynamic> toMap() {
     return {
       'emotionEntryId': emotionEntryId,
@@ -55,7 +71,7 @@ class EmotionEntryRevision {
     };
   }
 
-  // Create an EmotionEntryRevision object from a Hive Map
+  /// Deserializes an [EmotionEntryRevision] from a Hive storage map.
   factory EmotionEntryRevision.fromMap(Map<dynamic, dynamic> map) {
     return EmotionEntryRevision(
       emotionEntryId: map['emotionEntryId'] as String,

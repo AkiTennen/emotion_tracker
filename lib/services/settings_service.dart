@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'reminder_service.dart';
 
+/// Anatomy silhouette model selected for body map drawings.
 enum BodyType {
   neutral,
   female,
   male,
 }
 
+/// Central key-value store backed by Hive for app-wide user preferences,
+/// feature progression locks, tutorial flags, and custom palettes.
 class SettingsService {
+  /// Hive box identifier for persistent user settings.
   static const String settingsBoxName = 'settings';
   
-  // Keys
+  // ==========================================
+  // Storage Keys
+  // ==========================================
   static const String skipUnlockingKey = 'skip_unlocking';
   static const String unlockTier2Key = 'unlock_tier_2';
   static const String unlockTier3Key = 'unlock_tier_3';
@@ -44,11 +50,14 @@ class SettingsService {
   static const String colorsIntroShownKey = 'colors_intro_shown';
   static const String dataIntroShownKey = 'data_intro_shown';
 
+  /// Opens the settings Hive box.
   static Future<void> init() async {
     await Hive.openBox(settingsBoxName);
   }
 
-  // --- Onboarding & Tutorials ---
+  // ==========================================
+  // Onboarding & Tutorial Hints
+  // ==========================================
 
   static bool isOnboardingShown() {
     final box = Hive.box(settingsBoxName);
@@ -200,7 +209,9 @@ class SettingsService {
     await box.put(dataIntroShownKey, value);
   }
 
-  // --- Theme ---
+  // ==========================================
+  // App Theme
+  // ==========================================
 
   static ThemeMode getThemeMode() {
     final box = Hive.box(settingsBoxName);
@@ -213,7 +224,9 @@ class SettingsService {
     await box.put(themeModeKey, mode.name);
   }
 
-  // --- Localization & Preferences ---
+  // ==========================================
+  // Localization & Display Preferences
+  // ==========================================
 
   static int getFirstDayOfWeek() {
     final box = Hive.box(settingsBoxName);
@@ -235,8 +248,11 @@ class SettingsService {
     await box.put(dateFormatKey, format);
   }
 
-  // --- Progression ---
+  // ==========================================
+  // Feature Progression & Unlock Flags
+  // ==========================================
 
+  /// When enabled, all feature progression gating is bypassed.
   static bool shouldSkipUnlocking() {
     final box = Hive.box(settingsBoxName);
     return box.get(skipUnlockingKey, defaultValue: false);
@@ -302,7 +318,9 @@ class SettingsService {
     await box.put(unlockTriggerPromptsKey, value);
   }
 
-  // --- General ---
+  // ==========================================
+  // General & Body Map Preferences
+  // ==========================================
 
   static BodyType getBodyType() {
     final box = Hive.box(settingsBoxName);
@@ -335,8 +353,11 @@ class SettingsService {
     await box.put(showJournalKey, value);
   }
 
-  // --- Reminders ---
+  // ==========================================
+  // Reminders
+  // ==========================================
 
+  /// Retrieves the list of user-configured reminders from storage.
   static List<Reminder> getReminders() {
     final box = Hive.box(settingsBoxName);
     final List<dynamic>? rawList = box.get(remindersKey);
@@ -344,6 +365,7 @@ class SettingsService {
     return rawList.map((map) => Reminder.fromMap(map)).toList();
   }
 
+  /// Persists the list of reminders and reschedules all active alarms.
   static Future<void> saveReminders(List<Reminder> reminders) async {
     final box = Hive.box(settingsBoxName);
     final rawList = reminders.map((r) => r.toMap()).toList();
@@ -355,8 +377,11 @@ class SettingsService {
     }
   }
 
-  // --- Custom Colors ---
+  // ==========================================
+  // Custom Emotion Colors
+  // ==========================================
 
+  /// Retrieves a map of emotion names to 32-bit ARGB color integers.
   static Map<String, int> getCustomColors() {
     final box = Hive.box(settingsBoxName);
     final Map<dynamic, dynamic>? rawMap = box.get(customColorsKey);
@@ -364,6 +389,7 @@ class SettingsService {
     return Map<String, int>.from(rawMap);
   }
 
+  /// Assigns a custom color value to an emotion.
   static Future<void> setCustomColor(String emotion, int colorValue) async {
     final box = Hive.box(settingsBoxName);
     final Map<String, int> current = getCustomColors();
@@ -371,6 +397,7 @@ class SettingsService {
     await box.put(customColorsKey, current);
   }
 
+  /// Clears all custom emotion colors, restoring default palette values.
   static Future<void> resetCustomColors() async {
     final box = Hive.box(settingsBoxName);
     await box.delete(customColorsKey);

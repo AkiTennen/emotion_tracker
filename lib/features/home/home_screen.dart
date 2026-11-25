@@ -17,6 +17,8 @@ import 'journal_editor_screen.dart';
 import 'journal_detail_screen.dart';
 import 'journal_read_screen.dart';
 
+/// Main landing screen displaying the calendar timeline, logged daily emotions,
+/// journal entries, quick check-in actions, and revision history.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -41,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _refreshData();
   }
 
+  /// Reloads all emotion entries, journals, and first-time tutorial flags from local storage.
   void _refreshData() {
     setState(() {
       _allEntries = DatabaseService.getAllEntries();
@@ -51,10 +54,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  /// Filters cached emotion logs for the specified calendar [day].
   List<EmotionEntry> _getEntriesForDay(DateTime day) {
     return _allEntries.where((entry) => isSameDay(entry.timestamp, day)).toList();
   }
 
+  /// Filters cached journal entries for the specified calendar [day].
   List<JournalEntry> _getJournalsForDay(DateTime day) {
     return _allJournals.where((journal) => isSameDay(journal.timestamp, day)).toList();
   }
@@ -66,6 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Good Evening 🌙';
   }
 
+  /// Displays the contextual action bottom sheet for an emotion entry:
+  /// allowing timeline inspection, data correction, reflection, or deletion.
   void _showRevisionDialog(EmotionEntry entry) {
     final latest = DatabaseService.getLatestState(entry);
     final currentEntryState = EmotionEntry(

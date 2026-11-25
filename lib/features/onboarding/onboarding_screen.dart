@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/settings_service.dart';
 
+/// Multi-page introductory walk-through explaining the app's philosophy,
+/// local-first privacy model, and progressive feature disclosure.
 class OnboardingScreen extends StatefulWidget {
+  /// Callback triggered when the user finishes or skips the onboarding carousel.
   final VoidCallback onFinish;
 
   const OnboardingScreen({super.key, required this.onFinish});
@@ -41,6 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
   ];
 
+  /// Advances to the next onboarding slide, or completes onboarding if on the last slide.
   void _nextPage() {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
@@ -52,6 +56,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  /// Marks onboarding as completed in settings and invokes [widget.onFinish].
   Future<void> _finish() async {
     await SettingsService.setOnboardingShown(true);
     widget.onFinish();
@@ -144,6 +149,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
+/// Data model representing a single onboarding slide
 class _OnboardingData {
   final String title;
   final String description;

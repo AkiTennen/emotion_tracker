@@ -8,13 +8,30 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
-enum AlertType { quiet, alarm }
+/// Notification style and interruption level for a scheduled reminder.
+enum AlertType {
+  /// Subtle, silent notification with low priority.
+  quiet,
 
+  /// High-priority alarm with sound, vibration, and full-screen intent support.
+  alarm,
+}
+
+/// Represents a configurable daily reminder to log emotions.
 class Reminder {
+  /// Unique notification identifier.
   final int id;
+
+  /// Time of day when the reminder fires.
   final TimeOfDay time;
+
+  /// Auditory and visual interruption style.
   final AlertType alertType;
+
+  /// Custom notification body text.
   final String message;
+
+  /// Whether the reminder is actively scheduled.
   final bool isEnabled;
 
   Reminder({
@@ -25,6 +42,7 @@ class Reminder {
     this.isEnabled = true,
   });
 
+  /// Serializes this reminder to a map for storage.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -36,8 +54,10 @@ class Reminder {
     };
   }
 
+  /// Deserializes a reminder from a storage map.
   factory Reminder.fromMap(Map<dynamic, dynamic> map) {
     String alertTypeName = map['alertType'] as String? ?? 'quiet';
+    // Backwards compatibility: Map legacy 'vibrate' setting to 'quiet'
     if (alertTypeName == 'vibrate') {
       alertTypeName = 'quiet';
     }
@@ -57,10 +77,12 @@ class Reminder {
   }
 }
 
+/// Manages local notification scheduling, channel configuration, and audio alarms.
 class ReminderService {
   static final _notifications = FlutterLocalNotificationsPlugin();
   static final _audioPlayer = AudioPlayer();
 
+  /// Initializes timezone data and the local notification plugin.
   static Future<void> init() async {
     tz.initializeTimeZones();
     try {
@@ -79,6 +101,7 @@ class ReminderService {
     );
   }
 
+  /// Requests required notification and exact alarm permissions on Android.
   static Future<void> requestPermissions() async {
     if (Platform.isAndroid) {
       final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -87,6 +110,7 @@ class ReminderService {
     }
   }
 
+  /// Fires an immediate one-off test notification (ID: 999) using the reminder's configuration.
   static Future<void> sendImmediateTest(Reminder reminder) async {
     try {
       final androidDetails = _getAndroidDetails(reminder.alertType);
@@ -101,6 +125,7 @@ class ReminderService {
     }
   }
 
+  /// Schedules or updates a repeating daily notification at the specified time.
   static Future<void> scheduleReminder(Reminder reminder) async {
     await _notifications.cancel(reminder.id);
     if (!reminder.isEnabled) return;
@@ -121,10 +146,13 @@ class ReminderService {
     );
   }
 
+  /// Cancels a previously scheduled reminder by its [id].
   static Future<void> cancelReminder(int id) async {
     await _notifications.cancel(id);
   }
 
+  /// Calculates the next upcoming [tz.TZDateTime] for the given [time].
+  /// If the time has already passed today, schedules for tomorrow.
   static tz.TZDateTime _nextInstanceOfTime(TimeOfDay time) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, time.hour, time.minute);
@@ -134,6 +162,7 @@ class ReminderService {
     return scheduledDate;
   }
 
+  /// Builds platform-specific notification details based on the [AlertType].
   static AndroidNotificationDetails _getAndroidDetails(AlertType type) {
     const String channelId = 'sentic_reminders_final_alarm';
     const String channelName = 'Sentic Reminders';
@@ -160,6 +189,7 @@ class ReminderService {
     }
   }
 
+  /// Plays a preview of the bundled alarm sound asset.
   static Future<void> previewAlarmSound() async {
     try {
       await _audioPlayer.setVolume(1.0);
@@ -169,6 +199,7 @@ class ReminderService {
     }
   }
 
+  /// Stops any currently playing alarm preview.
   static Future<void> stopPreview() async {
     await _audioPlayer.stop();
   }
